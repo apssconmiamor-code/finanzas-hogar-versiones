@@ -1,0 +1,237 @@
+// =============================================
+// GOOGLE SHEETS — Lectura y escritura
+// =============================================
+// Columnas hoja Movimientos:
+// A: id | B: fecha | C: autor | D: concepto | E: categoria | F: caja | G: monto | H: descripcion | I: recibo
+
+const Sheets = {
+  token: null,
+  setToken(t) { this.token = t; },
+
+  url(range) {
+    return `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SPREADSHEET_ID}/values/${encodeURIComponent(range)}`;
+  },
+
+  async leer(rango) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    try {
+      const res = await fetch(this.url(rango) + "?valueRenderOption=UNFORMATTED_VALUE", {
+        headers: { Authorization: `Bearer ${this.token}` },
+        signal: controller.signal
+      });
+      clearTimeout(timeout);
+      if (res.status === 401) { Sheets._renovarToken(); throw new Error("TOKEN_EXPIRADO"); }
+      if (!res.ok) throw new Error(`Error leyendo ${rango}: ${res.status}`);
+      const data = await res.json();
+      return data.values || [];
+    } catch (err) {
+      clearTimeout(timeout);
+      if (err.name === "AbortError") throw new Error("TIMEOUT");
+      throw err;
+    }
+  },
+
+  _renovarToken() {
+    const user = localStorage.getItem("guser");
+    if (!user) { location.reload(); return; }
+    const client = google.accounts.oauth2.initTokenClient({
+      client_id: CONFIG.GOOGLE_CLIENT_ID,
+      scope: "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email",
+      prompt: "",
+      callback: (response) => {
+        if (response.error) { location.reload(); return; }
+        Sheets.setToken(response.access_token);
+        localStorage.setItem("gtoken", response.access_token);
+        cargarTodo();
+      }
+    });
+    client.requestAccessToken();
+  },
+
+  async agregar(hoja, fila) {
+    const range = `${hoja}!A1`;
+    const res = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SPREADSHEET_ID}/values/${encodeURIComponent(range)}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${this.token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ values: [fila] })
+      }
+    );
+    if (res.status === 401) { Sheets._renovarToken(); throw new Error("TOKEN_EXPIRADO"); }
+    if (!res.ok) throw new Error(`Error guardando en ${hoja}: ${res.status}`);
+    return res.json();
+  },
+
+  _serialToDate(valor) {
+    if (!valor) return "";
+    if (typeof valor === "string" && valor.includes("-")) return valor;
+    const serial = Number(valor);
+    if (isNaN(serial)) return String(valor);
+    return new Date((serial - 25569) * 86400 * 1000).toISOString().split("T")[0];
+  },
+
+  // ---- CAJAS ----
+  async getCajas() {
+    const rows = await this.leer(`${CONFIG.SHEETS.CAJAS}!A2:D`);
+    return rows.filter(r => r && r[0]).map(r => ({
+      id: r[0] || "", usuario: r[1] || "", nombre: r[2] || "", moneda: r[3] || "COP"
+    }));
+  },
+
+  async agregarCaja(usuario, nombre, moneda) {
+    const id = "C" + Date.now();
+    await this.agregar(CONFIG.SHEETS.CAJAS, [id, usuario, nombre, moneda]);
+    return id;
+  },
+
+  // ---- MOVIMIENTOS ----
+  async getMovimientos() {
+    const rows = await this.leer(`${CONFIG.SHEETS.MOVIMIENTOS}!A2:I`);
+    return rows.filter(r => r && r[0]).map(r => ({
+      id:          r[0] || "",
+      fecha:       Sheets._serialToDate(r[1]),
+      autor:       r[2] || "",
+      concepto:    r[3] || "",
+      categoria:   r[4] || "",
+      caja:        r[5] || "",
+      monto:       isNaN(parseFloat(r[6])) ? 0 : parseFloat(r[6]),
+      descripcion: r[7] || "",
+      recibo:      r[8] || ""
+    }));
+  },
+
+  async agregarMovimiento(autor, fecha, concepto, categoria, caja, monto, descripcion = "", recibo = "") {
+    const id = "M" + Date.now();
+    await this.agregar(CONFIG.SHEETS.MOVIMIENTOS, [id, fecha, autor, concepto, categoria, caja, monto, descripcion, recibo]);
+    return id;
+  },
+
+  async agregarMovimientoIngreso(autor, fecha, concepto, categoria, caja, monto, descripcion = "", recibo = "") {
+    await new Promise(r => setTimeout(r, 5));
+    const id = "M" + Date.now();
+    await this.agregar(CONFIG.SHEETS.MOVIMIENTOS, [id, fecha, autor, concepto, categoria, caja, monto, descripcion, recibo]);
+    return id;
+  },
+
+  // ---- EDITAR MOVIMIENTO ----
+  async editarMovimiento(id, fecha, concepto, categoria, caja, monto, descripcion = "") {
+    const rows = await this.leer(`${CONFIG.SHEETS.MOVIMIENTOS}!A2:C`);
+    const rowIndex = rows.findIndex(r => r[0] === id);
+    if (rowIndex === -1) throw new Error("Movimiento no encontrado");
+    const sheetRow = rowIndex + 2;
+    const autor = rows[rowIndex][2] || "";
+    const range = `${CONFIG.SHEETS.MOVIMIENTOS}!B${sheetRow}:H${sheetRow}`;
+    const res = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SPREADSHEET_ID}/values/${encodeURIComponent(range)}?valueInputOption=RAW`,
+      {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${this.token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ values: [[fecha, autor, concepto, categoria, caja, monto, descripcion]] })
+      }
+    );
+    if (res.status === 401) { Sheets._renovarToken(); throw new Error("TOKEN_EXPIRADO"); }
+    if (!res.ok) throw new Error(`Error editando: ${res.status}`);
+    return res.json();
+  },
+
+  // ---- BORRAR MOVIMIENTO ----
+  async borrarMovimiento(id) {
+    const rows = await this.leer(`${CONFIG.SHEETS.MOVIMIENTOS}!A2:A`);
+    const rowIndex = rows.findIndex(r => r[0] === id);
+    if (rowIndex === -1) throw new Error("Movimiento no encontrado");
+    const sheetRowIndex = rowIndex + 1;
+
+    const metaRes = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SPREADSHEET_ID}?fields=sheets.properties`,
+      { headers: { Authorization: `Bearer ${this.token}` } }
+    );
+    if (!metaRes.ok) throw new Error(`Error obteniendo metadata: ${metaRes.status}`);
+    const meta = await metaRes.json();
+    const sheet = meta.sheets.find(s => s.properties.title === CONFIG.SHEETS.MOVIMIENTOS);
+    if (!sheet) throw new Error("Hoja de movimientos no encontrada");
+    const sheetId = sheet.properties.sheetId;
+
+    const res = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SPREADSHEET_ID}:batchUpdate`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${this.token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          requests: [{
+            deleteDimension: {
+              range: {
+                sheetId,
+                dimension: "ROWS",
+                startIndex: sheetRowIndex,
+                endIndex: sheetRowIndex + 1
+              }
+            }
+          }]
+        })
+      }
+    );
+    if (res.status === 401) { Sheets._renovarToken(); throw new Error("TOKEN_EXPIRADO"); }
+    if (!res.ok) throw new Error(`Error borrando: ${res.status}`);
+    return res.json();
+  }
+};
+
+// ---- PRESUPUESTO ----
+Sheets.getPresupuesto = async function() {
+  const rows = await this.leer(`${CONFIG.SHEETS.PRESUPUESTO}!A2:D`);
+  return rows.filter(r => r && r[0]).map(r => ({
+    categoria:        r[0] || "",
+    concepto:         r[1] || "",
+    montoEstimado:    isNaN(parseFloat(r[2])) ? 0 : parseFloat(r[2]),
+    ingresoEstimado:  isNaN(parseFloat(r[3])) ? 0 : parseFloat(r[3]),
+  }));
+};
+
+Sheets.guardarPresupuesto = async function(filas) {
+  const clearRes = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SPREADSHEET_ID}/values/${encodeURIComponent(CONFIG.SHEETS.PRESUPUESTO + "!A2:D")}:clear`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${this.token}`, "Content-Type": "application/json" }
+    }
+  );
+  if (!clearRes.ok) throw new Error(`Error limpiando presupuesto: ${clearRes.status}`);
+  if (filas.length === 0) return;
+  const values = filas.map(f => [f.categoria, f.concepto, f.montoEstimado, f.ingresoEstimado || 0]);
+  const writeRes = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SPREADSHEET_ID}/values/${encodeURIComponent(CONFIG.SHEETS.PRESUPUESTO + "!A2")}?valueInputOption=RAW`,
+    {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${this.token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ values })
+    }
+  );
+  if (!writeRes.ok) throw new Error(`Error guardando presupuesto: ${writeRes.status}`);
+  return writeRes.json();
+};
+
+// ---- CRONOLOGIA ----
+Sheets.getCronologia = async function() {
+  const rows = await this.leer(`${CONFIG.SHEETS.CRONOLOGIA}!A2:F`);
+  return rows.filter(r => r && r[0]).map(r => ({
+    id:              r[0] || "",
+    mes:             r[1] || "",
+    fijoAsertividad: isNaN(parseFloat(r[2])) ? 0 : parseFloat(r[2]),
+    fijoCantidad:    isNaN(parseFloat(r[3])) ? 0 : parseFloat(r[3]),
+    varAsertividad:  isNaN(parseFloat(r[4])) ? 0 : parseFloat(r[4]),
+    varCantidad:     isNaN(parseFloat(r[5])) ? 0 : parseFloat(r[5]),
+  }));
+};
+
+Sheets.guardarCronologia = async function(mes, fijoAser, fijoCant, varAser, varCant) {
+  const id = "CR" + Date.now();
+  await this.agregar(CONFIG.SHEETS.CRONOLOGIA, [id, mes, fijoAser, fijoCant, varAser, varCant]);
+  return id;
+};
+
+Sheets.existeCronologiaMes = async function(mes) {
+  const rows = await this.leer(`${CONFIG.SHEETS.CRONOLOGIA}!A2:B`);
+  return rows.some(r => r[1] === mes);
+};
