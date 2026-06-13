@@ -483,7 +483,6 @@ function renderCajas() {
         <span class="caja-moneda-badge ${badgeClass}">${c.moneda}</span>
       </div>
       <div class="caja-nombre">${c.nombre}</div>
-      <div class="caja-usuario">${c.usuario}</div>
       <div class="caja-saldo positivo">${formatMonto(saldo, c.moneda)}</div>
     </div>`;
   }).join("");
