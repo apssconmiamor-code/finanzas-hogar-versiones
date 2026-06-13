@@ -456,6 +456,16 @@ async function cargarTodo() {
 
 // ---- RENDER CAJAS ----
 
+// Clasifica la caja por nombre y retorna la clase de color del badge
+function cajaBadgeClass(nombre) {
+  const n = nombre.toLowerCase();
+  if (/luni|bonita|yei/.test(n))                    return "badge-persona-luni";
+  if (/ahorro|meta|objetivo/.test(n))                return "badge-ahorro";
+  if (/choco|roy|royer/.test(n))                   return "badge-persona-roy";
+  if (/emergencia|imprevisto/.test(n))               return "badge-emergencia";
+  return "badge-otro";
+}
+
 function renderCajas() {
   const grid = document.getElementById("cajas-grid");
   if (cajas.length === 0) {
@@ -465,12 +475,16 @@ function renderCajas() {
     return;
   }
   grid.innerHTML = cajas.map(c => {
-    const saldo = calcularSaldoCaja(c.nombre);
+    const saldoReal = calcularSaldoCaja(c.nombre);
+    const saldo     = Math.max(0, saldoReal);   // nunca mostrar negativo
+    const badgeClass = cajaBadgeClass(c.nombre);
     return `<div class="caja-card">
-      <div class="caja-moneda-badge">${c.moneda}</div>
+      <div class="caja-card-top">
+        <span class="caja-moneda-badge ${badgeClass}">${c.moneda}</span>
+      </div>
       <div class="caja-nombre">${c.nombre}</div>
       <div class="caja-usuario">${c.usuario}</div>
-      <div class="caja-saldo ${saldo >= 0 ? "positivo" : "negativo"}">${formatMonto(saldo, c.moneda)}</div>
+      <div class="caja-saldo positivo">${formatMonto(saldo, c.moneda)}</div>
     </div>`;
   }).join("");
 }
