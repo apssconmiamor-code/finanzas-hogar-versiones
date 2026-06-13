@@ -388,9 +388,30 @@ body {
 .caja-card:active { transform: scale(0.98); }
 .caja-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .caja-moneda-badge {
-  font-size: 9px; font-weight: 700; color: var(--blue);
-  background: var(--blue-soft); border-radius: 5px;
-  padding: 2px 6px; letter-spacing: 0.4px; text-transform: uppercase;
+  font-size: 9px; font-weight: 700; border-radius: 5px;
+  padding: 2px 7px; letter-spacing: 0.5px; text-transform: uppercase;
+  /* default (otro) */
+  color: #6b7280; background: #f3f4f6;
+}
+/* Luni · Bonita · Yei — lavanda */
+.caja-moneda-badge.badge-persona-luni {
+  color: #7c3aed; background: #ede9fe;
+}
+/* Ahorro · Meta · Objetivo — verde menta */
+.caja-moneda-badge.badge-ahorro {
+  color: #065f46; background: #d1fae5;
+}
+/* Choco · Roy · Royer — azul acero */
+.caja-moneda-badge.badge-persona-roy {
+  color: #1e40af; background: #dbeafe;
+}
+/* Emergencia · Imprevisto — durazno */
+.caja-moneda-badge.badge-emergencia {
+  color: #92400e; background: #fde68a;
+}
+/* Otro nombre — gris */
+.caja-moneda-badge.badge-otro {
+  color: #374151; background: #e5e7eb;
 }
 .caja-nombre { font-family: var(--font-display); font-size: 14px; font-weight: 700; letter-spacing: -0.2px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .caja-usuario { font-size: 10px; color: var(--text-4); }
