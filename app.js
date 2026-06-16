@@ -498,6 +498,16 @@ async function cargarTodo() {
     await cargarYRenderCronologia();
     await cargarPrestamos();
     renderResumen();
+
+    // Metas: cargar desde Sheets y actualizar caché (fire-and-forget)
+    Sheets.getMetas().then(metasSheet => {
+      if (metasSheet.length > 0 || getMetas().length === 0) {
+        localStorage.setItem("metas_ahorro_v2", JSON.stringify(metasSheet));
+        const panel = document.getElementById("planes-panel-metas");
+        if (panel && !panel.classList.contains("hidden")) renderMetas();
+      }
+    }).catch(() => {});
+
   } catch (err) {    
     if (err.message === "TOKEN_EXPIRADO") return;
 
@@ -2427,14 +2437,7 @@ function generarSubmetasDesde(meta) {
 }
 
 async function cargarMetas() {
-  renderMetas(); // mostrar caché inmediatamente
-  try {
-    const metasSheet = await Sheets.getMetas();
-    localStorage.setItem("metas_ahorro_v2", JSON.stringify(metasSheet));
-    renderMetas();
-  } catch (err) {
-    console.warn("Error cargando metas desde Sheets:", err);
-  }
+  renderMetas();
 }
 
 function renderMetas() {
