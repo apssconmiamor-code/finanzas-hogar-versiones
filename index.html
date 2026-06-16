@@ -567,6 +567,32 @@
       </div>
     </div>
 
+    <!-- Modal registrar ahorro meta -->
+    <div id="modal-registrar-ahorro" class="modal hidden">
+      <div class="modal-card">
+        <h3 class="modal-title">Registrar ahorro</h3>
+        <input type="hidden" id="ahorro-meta-id"/>
+        <div id="ahorro-meta-info" class="ahorro-meta-info-label"></div>
+        <div class="form-group">
+          <label>Monto</label>
+          <input id="ahorro-monto" type="number" inputmode="decimal" placeholder="0" class="input"/>
+          <span id="ahorro-sugerido-hint" class="mov-saldo-hint hidden"></span>
+        </div>
+        <div class="form-group">
+          <label>Fecha</label>
+          <input id="ahorro-fecha" type="date" class="input"/>
+        </div>
+        <div class="form-group">
+          <label>Descripción <span class="label-opcional">(opcional)</span></label>
+          <input id="ahorro-desc" type="text" placeholder="Ahorro mensual, extra…" class="input"/>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-secondary" id="btn-cancelar-ahorro">Cancelar</button>
+          <button class="btn-primary" id="btn-guardar-ahorro">Registrar</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Modal nueva compra -->
     <div id="modal-compra" class="modal hidden">
       <div class="modal-card">

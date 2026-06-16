@@ -2513,11 +2513,8 @@ function renderMetas() {
       ? `${meta.estrategiaValor}% del ingreso/mes`
       : "Sin estrategia";
 
-    // Submetas del mes actual
-    const submetas = (meta.submetas || []);
     const mesActual = new Date().toISOString().slice(0, 7);
-    const submetaActual = submetas.find(s => s.mes === mesActual);
-    const submetasMostrar = submetas.slice(-6).reverse(); // últimas 6
+    const ahorroSugerido = Math.round(calcularAhorroPorMes(meta, mesActual));
 
     return `<div class="meta-card">
       <div class="meta-card-header">
@@ -2548,34 +2545,12 @@ function renderMetas() {
           <span class="meta-stat-chip">📈 ${estrategiaLabel}</span>
           ${fechaInfo ? `<span class="meta-stat-chip">📅 ${fechaInfo}</span>` : ""}
           ${mesesPara !== null ? `<span class="meta-stat-chip">🚀 ~${mesesPara} mes${mesesPara !== 1 ? "es" : ""} con excedente actual</span>` : ""}
-          ${submetaActual ? `<span class="meta-stat-chip" style="background:${submetaActual.pagado?"var(--green-soft)":"var(--blue-soft)"}">
-            ${submetaActual.pagado ? "✅" : "📌"} Este mes: ${formatMonto(calcularAhorroPorMes(meta, mesActual))}
-          </span>` : ""}
+          ${ahorroSugerido > 0 ? `<span class="meta-stat-chip" style="background:var(--green-soft);color:var(--green-dark)">📌 Cuota este mes: ${formatMonto(ahorroSugerido)}</span>` : ""}
         </div>
       </div>
-      ${submetas.length > 0 ? `
-      <div class="meta-submetas">
-        <div class="meta-submetas-header" onclick="toggleSubmetas('${meta.id}')">
-          <span class="meta-submetas-title">📅 Submetas mensuales (${submetas.filter(s=>s.pagado).length}/${submetas.length} completadas)</span>
-          <span id="submeta-arrow-${meta.id}">▼</span>
-        </div>
-        <div class="meta-submetas-list" id="submetas-${meta.id}" style="display:none">
-          ${submetasMostrar.map(s => {
-            const sLabel = new Date(s.mes + "-15").toLocaleDateString("es-CO", { month: "long", year: "2-digit" });
-            const montoSm = s.montoObjetivo > 0 ? s.montoObjetivo : calcularAhorroPorMes(meta, s.mes);
-            return `<div class="submeta-item">
-              <div class="submeta-check ${s.pagado ? "done" : ""}" onclick="toggleSubmeta('${meta.id}','${s.id}')" title="${s.pagado ? "Marcar pendiente" : "Marcar completo"}">
-                ${s.pagado ? "✓" : ""}
-              </div>
-              <div class="submeta-info">
-                <div class="submeta-mes">${sLabel}</div>
-                <div class="submeta-monto">${formatMonto(montoSm)}</div>
-              </div>
-              <span style="font-size:11px;color:var(--text-4)">${s.mes === mesActual ? "← Este mes" : ""}</span>
-            </div>`;
-          }).join("")}
-          ${submetas.length > 6 ? `<div style="font-size:11px;color:var(--text-4);text-align:center;padding:4px">+${submetas.length - 6} más…</div>` : ""}
-        </div>
+      ${pct < 100 ? `
+      <div class="meta-card-footer">
+        <button class="btn-registrar-ahorro" onclick="abrirRegistrarAhorro('${meta.id}')">💰 Registrar ahorro</button>
       </div>` : ""}
     </div>`;
   }).join("");
@@ -2635,18 +2610,13 @@ async function guardarMeta() {
     submetas: []
   };
 
-  // Generar submetas si hay fecha límite
-  if (fecha) {
-    nuevaMeta.submetas = generarSubmetasDesde(nuevaMeta);
-  }
-
   const metas = getMetas();
   metas.push(nuevaMeta);
   saveMetas(metas);
   document.getElementById("modal-meta").classList.add("hidden");
   limpiarFormMeta();
   renderMetas();
-  SyncManager.mostrarToast(`✅ Meta "${nombre}" creada con ${nuevaMeta.submetas.length} submetas`);
+  SyncManager.mostrarToast(`✅ Meta "${nombre}" creada`);
 }
 
 function limpiarFormMeta() {
@@ -2728,6 +2698,75 @@ function borrarMeta(id) {
   renderMetas();
 }
 
+function abrirRegistrarAhorro(metaId) {
+  const metas = getMetas();
+  const meta = metas.find(m => m.id === metaId);
+  if (!meta) return;
+  const caja = cajas.find(c => c.id === meta.cajaId);
+  const mesActual = new Date().toISOString().slice(0, 7);
+  const sugerido = Math.round(calcularAhorroPorMes(meta, mesActual));
+
+  document.getElementById("ahorro-meta-id").value = metaId;
+  document.getElementById("ahorro-meta-info").textContent =
+    `${meta.icono || "🎯"} ${meta.nombre}  ·  🏦 ${caja ? caja.nombre : "Sin caja"}`;
+  const montoInput = document.getElementById("ahorro-monto");
+  montoInput.value = sugerido > 0 ? sugerido : "";
+  montoInput.placeholder = sugerido > 0 ? String(sugerido) : "0";
+  document.getElementById("ahorro-fecha").value = new Date().toISOString().slice(0, 10);
+  document.getElementById("ahorro-desc").value = "";
+  const hint = document.getElementById("ahorro-sugerido-hint");
+  if (sugerido > 0) {
+    hint.textContent = `Cuota sugerida según tu estrategia: ${formatMonto(sugerido)}/mes`;
+    hint.classList.remove("hidden");
+  } else {
+    hint.classList.add("hidden");
+  }
+  document.getElementById("modal-registrar-ahorro").classList.remove("hidden");
+}
+
+async function guardarAhorroMeta() {
+  const metaId = document.getElementById("ahorro-meta-id").value;
+  const monto  = parseFloat(document.getElementById("ahorro-monto").value);
+  const fecha  = document.getElementById("ahorro-fecha").value;
+  const desc   = document.getElementById("ahorro-desc").value.trim();
+
+  if (!monto || monto <= 0) { alert("Ingresa un monto válido"); return; }
+  if (!fecha) { alert("Selecciona una fecha"); return; }
+
+  const metas = getMetas();
+  const meta  = metas.find(m => m.id === metaId);
+  if (!meta) return;
+  const caja = cajas.find(c => c.id === meta.cajaId);
+  if (!caja) { alert("Caja no encontrada"); return; }
+
+  const btn = document.getElementById("btn-guardar-ahorro");
+  btn.disabled = true; btn.textContent = "Registrando…";
+
+  try {
+    const concepto = `Ahorro: ${meta.nombre}`;
+    const descripcion = desc || `Depósito de ahorro — ${meta.nombre}`;
+    await Sheets.agregarMovimiento(
+      currentUser?.name || "—", fecha, concepto, "Ingreso",
+      caja.nombre, monto, descripcion
+    );
+    movimientos.push({
+      id: "M" + Date.now(), fecha,
+      autor: currentUser?.name || "—",
+      concepto, categoria: "Ingreso",
+      caja: caja.nombre, monto, descripcion, recibo: ""
+    });
+    localStorage.setItem("cache_movimientos", JSON.stringify(movimientos));
+    document.getElementById("modal-registrar-ahorro").classList.add("hidden");
+    renderMetas();
+    renderCajas();
+    SyncManager.mostrarToast(`✅ ${formatMonto(monto)} registrados en ${caja.nombre}`);
+  } catch (err) {
+    alert("Error al registrar: " + err.message);
+  } finally {
+    btn.disabled = false; btn.textContent = "Registrar";
+  }
+}
+
 function setupMetasListeners() {
   document.getElementById("btn-nueva-meta")?.addEventListener("click", () => {
     const cajasAhorro = getCajasAhorro();
@@ -2767,6 +2806,15 @@ function setupMetasListeners() {
     document.getElementById(id)?.addEventListener("input", actualizarEstrategiaCalculo);
   });
   document.getElementById("meta-pct-custom")?.addEventListener("input", actualizarEstrategiaCalculo);
+
+  // Modal registrar ahorro
+  document.getElementById("btn-cancelar-ahorro")?.addEventListener("click", () =>
+    document.getElementById("modal-registrar-ahorro").classList.add("hidden"));
+  document.getElementById("btn-guardar-ahorro")?.addEventListener("click", guardarAhorroMeta);
+  document.getElementById("modal-registrar-ahorro")?.addEventListener("click", (e) => {
+    if (e.target === document.getElementById("modal-registrar-ahorro"))
+      document.getElementById("modal-registrar-ahorro").classList.add("hidden");
+  });
 }
 
 if (document.readyState === "loading") {

@@ -750,6 +750,35 @@ body {
 .submeta-monto { font-size: 13px; font-weight: 700; color: var(--blue); }
 .submeta-progreso { font-size: 11px; color: var(--text-4); }
 
+/* Botón registrar ahorro */
+.meta-card-footer {
+  padding: 12px 18px;
+  border-top: 1px solid var(--border);
+}
+.btn-registrar-ahorro {
+  width: 100%;
+  padding: 11px;
+  border: 1.5px solid var(--green);
+  border-radius: var(--r-md);
+  background: var(--green-soft);
+  color: var(--green-dark);
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.btn-registrar-ahorro:hover { background: var(--green); color: #fff; }
+
+.ahorro-meta-info-label {
+  font-size: 14px; font-weight: 500;
+  color: var(--text-secondary);
+  padding: 10px 14px;
+  background: var(--surface-2);
+  border-radius: var(--r-md);
+  margin-bottom: 16px;
+}
+
 /* Estrategia de ahorro */
 .meta-estrategia-wrap { background: var(--bg); border-radius: var(--r-md); padding: 14px; border: 1px solid var(--border); }
 .meta-estrategia-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
