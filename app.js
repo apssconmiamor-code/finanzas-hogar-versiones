@@ -2340,13 +2340,10 @@ function getCajasAhorro() {
   return cajas.filter(c => /ahorro|emergencia/i.test(c.nombre));
 }
 
-// Calcula el saldo real de una caja basado en movimientos
-function getSaldoCaja(cajaId) {
-  return movimientos.filter(m => m.caja === cajaId).reduce((s, m) => {
-    if (m.categoria === "Ingreso") return s + m.monto;
-    if (m.categoria === "Transferencia") return s;
-    return s - Math.abs(m.monto);
-  }, 0);
+// Saldo real de una caja de meta — usa el nombre (igual que calcularSaldoCaja)
+function getSaldoCajaMeta(cajaObj) {
+  if (!cajaObj) return 0;
+  return calcularSaldoCaja(cajaObj.nombre);
 }
 
 // Ingreso estimado para un mes
@@ -2387,8 +2384,8 @@ function calcularCuotaFija(meta) {
   const limite = new Date(meta.fechaLimite);
   let meses = (limite.getFullYear() - hoy.getFullYear()) * 12 + (limite.getMonth() - hoy.getMonth());
   if (meses <= 0) meses = 1;
-  const cajaId = meta.cajaId;
-  const saldoActual = cajaId ? Math.max(0, getSaldoCaja(cajaId)) : 0;
+  const cajaObj = cajas.find(c => c.id === meta.cajaId);
+  const saldoActual = Math.max(0, getSaldoCajaMeta(cajaObj));
   const restante = Math.max(0, meta.objetivo - saldoActual);
   return Math.ceil(restante / meses);
 }
@@ -2479,7 +2476,7 @@ function renderMetas() {
 
   lista.innerHTML = metas.map(meta => {
     const caja = cajas.find(c => c.id === meta.cajaId);
-    const saldo = Math.max(0, caja ? getSaldoCaja(meta.cajaId) : 0);
+    const saldo = Math.max(0, getSaldoCajaMeta(caja));
     const pct = meta.objetivo > 0 ? Math.min(100, Math.round((saldo / meta.objetivo) * 100)) : 0;
     const restante = Math.max(0, meta.objetivo - saldo);
     const color = pct >= 100 ? "var(--green)" : pct >= 60 ? "var(--blue)" : "var(--purple)";
@@ -2709,14 +2706,19 @@ function abrirRegistrarAhorro(metaId) {
   document.getElementById("ahorro-meta-id").value = metaId;
   document.getElementById("ahorro-meta-info").textContent = `${meta.icono || "🎯"} ${meta.nombre}`;
 
-  // Poblar selector con cajas de ahorro y emergencia
-  const cajasDisp = getCajasAhorro();
-  const sel = document.getElementById("ahorro-caja");
-  sel.innerHTML = cajasDisp.length
-    ? cajasDisp.map(c => `<option value="${c.nombre}"${c.id === meta.cajaId ? " selected" : ""}>${c.nombre}</option>`).join("")
-    : `<option value="${cajaMeta ? cajaMeta.nombre : ""}">
-        ${cajaMeta ? cajaMeta.nombre : "Sin caja asignada"}
-       </option>`;
+  // Destino: cajas de ahorro y emergencia
+  const cajasDestino = getCajasAhorro();
+  const selDest = document.getElementById("ahorro-caja");
+  selDest.innerHTML = cajasDestino.length
+    ? cajasDestino.map(c => `<option value="${c.nombre}"${c.id === meta.cajaId ? " selected" : ""}>${c.nombre}</option>`).join("")
+    : `<option value="${cajaMeta ? cajaMeta.nombre : ""}">${cajaMeta ? cajaMeta.nombre : "Sin caja"}</option>`;
+
+  // Origen: todas las cajas excepto la seleccionada como destino
+  const destNombreActual = selDest.value;
+  const selOrig = document.getElementById("ahorro-caja-origen");
+  selOrig.innerHTML = `<option value="">Selecciona una cuenta…</option>` +
+    cajas.filter(c => c.nombre !== destNombreActual)
+         .map(c => `<option value="${c.nombre}">${c.nombre}</option>`).join("");
 
   const montoInput = document.getElementById("ahorro-monto");
   montoInput.value = sugerido > 0 ? sugerido : "";
@@ -2735,43 +2737,61 @@ function abrirRegistrarAhorro(metaId) {
 }
 
 async function guardarAhorroMeta() {
-  const metaId   = document.getElementById("ahorro-meta-id").value;
-  const monto    = parseFloat(document.getElementById("ahorro-monto").value);
-  const fecha    = document.getElementById("ahorro-fecha").value;
-  const desc     = document.getElementById("ahorro-desc").value.trim();
-  const cajaNombre = document.getElementById("ahorro-caja").value;
+  const metaId      = document.getElementById("ahorro-meta-id").value;
+  const monto       = parseFloat(document.getElementById("ahorro-monto").value);
+  const fecha       = document.getElementById("ahorro-fecha").value;
+  const desc        = document.getElementById("ahorro-desc").value.trim();
+  const origenNombre = document.getElementById("ahorro-caja-origen").value;
+  const destNombre  = document.getElementById("ahorro-caja").value;
 
   if (!monto || monto <= 0) { alert("Ingresa un monto válido"); return; }
   if (!fecha) { alert("Selecciona una fecha"); return; }
-  if (!cajaNombre) { alert("Selecciona una cuenta de destino"); return; }
+  if (!origenNombre) { alert("Selecciona la cuenta de origen"); return; }
+  if (!destNombre) { alert("Selecciona la cuenta de destino"); return; }
+  if (origenNombre === destNombre) { alert("La cuenta origen y destino no pueden ser la misma"); return; }
 
   const metas = getMetas();
   const meta  = metas.find(m => m.id === metaId);
   if (!meta) return;
-  const caja = cajas.find(c => c.nombre === cajaNombre);
-  if (!caja) { alert("Caja no encontrada"); return; }
 
   const btn = document.getElementById("btn-guardar-ahorro");
   btn.disabled = true; btn.textContent = "Registrando…";
 
   try {
-    const concepto = `Ahorro: ${meta.nombre}`;
-    const descripcion = desc || `Depósito de ahorro — ${meta.nombre}`;
+    const descripcion = desc || `Ahorro — ${meta.nombre}`;
+    const autor = currentUser?.name || currentUser?.email || "—";
+
+    // Salida de la cuenta origen
     await Sheets.agregarMovimiento(
-      currentUser?.name || "—", fecha, concepto, "Ingreso",
-      caja.nombre, monto, descripcion
+      autor, fecha,
+      `Transferencia → ${destNombre}`,
+      "Transferencia", origenNombre, monto, descripcion
     );
+    // Entrada a la cuenta de ahorro/emergencia
+    await Sheets.agregarMovimientoIngreso(
+      autor, fecha,
+      `Transferencia ← ${origenNombre}`,
+      "Transferencia", destNombre, monto, descripcion
+    );
+
+    // Actualizar caché local
+    const t = Date.now();
     movimientos.push({
-      id: "M" + Date.now(), fecha,
-      autor: currentUser?.name || "—",
-      concepto, categoria: "Ingreso",
-      caja: caja.nombre, monto, descripcion, recibo: ""
+      id: "M" + t, fecha, autor,
+      concepto: `Transferencia → ${destNombre}`,
+      categoria: "Transferencia", caja: origenNombre, monto, descripcion, recibo: ""
+    });
+    movimientos.push({
+      id: "M" + (t + 1), fecha, autor,
+      concepto: `Transferencia ← ${origenNombre}`,
+      categoria: "Transferencia", caja: destNombre, monto, descripcion, recibo: ""
     });
     localStorage.setItem("cache_movimientos", JSON.stringify(movimientos));
+
     document.getElementById("modal-registrar-ahorro").classList.add("hidden");
     renderMetas();
     renderCajas();
-    SyncManager.mostrarToast(`✅ ${formatMonto(monto)} registrados en ${caja.nombre}`);
+    SyncManager.mostrarToast(`✅ ${formatMonto(monto)} transferidos de ${origenNombre} a ${destNombre}`);
   } catch (err) {
     alert("Error al registrar: " + err.message);
   } finally {
