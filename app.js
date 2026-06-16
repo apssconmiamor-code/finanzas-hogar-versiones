@@ -1182,6 +1182,13 @@ function getMesesProyeccion() {
     }
     saveMesesProyeccion();
   }
+  // Eliminar meses anteriores al mes actual
+  const mesActual = new Date().toISOString().slice(0, 7);
+  const sinPasados = mesesProyeccion.filter(m => m >= mesActual);
+  if (sinPasados.length !== mesesProyeccion.length) {
+    mesesProyeccion = sinPasados;
+    saveMesesProyeccion();
+  }
   return mesesProyeccion;
 }
 
