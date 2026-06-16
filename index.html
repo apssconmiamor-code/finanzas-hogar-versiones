@@ -55,8 +55,8 @@
         <button class="nav-item" data-tab="proyeccion">
           <span class="nav-icon">📊</span><span>Proyección</span>
         </button>
-        <button class="nav-item" data-tab="planes">
-          <span class="nav-icon">🗂️</span><span>Planes</span>
+        <button class="nav-item" data-tab="compromisos">
+          <span class="nav-icon">🗂️</span><span>Compromisos</span>
         </button>
         <div class="sidebar-divider"></div>
         <button class="nav-item" data-tab="resumen">
@@ -92,13 +92,13 @@
           <div id="dropdown-menu" class="dropdown-menu hidden">
             <div class="dropdown-header" id="dropdown-user-info"></div>
             <div class="dropdown-section-label">Secciones</div>
-            <button class="dropdown-item" data-tab-nav="planes" data-subtab-target="metas">
+            <button class="dropdown-item" data-tab-nav="compromisos" data-subtab-target="metas">
               <span class="dd-icon">🎯</span> Metas
             </button>
-            <button class="dropdown-item" data-tab-nav="planes" data-subtab-target="compras">
+            <button class="dropdown-item" data-tab-nav="compromisos" data-subtab-target="compras">
               <span class="dd-icon">🛍️</span> Compras
             </button>
-            <button class="dropdown-item" data-tab-nav="planes" data-subtab-target="prestamos">
+            <button class="dropdown-item" data-tab-nav="compromisos" data-subtab-target="prestamos">
               <span class="dd-icon">💳</span> Préstamos
             </button>
             <button class="dropdown-item" data-tab-nav="resumen">
@@ -358,7 +358,7 @@
       </section>
 
       <!-- ══ TAB: PLANES (Metas + Compras + Préstamos) ══ -->
-      <section id="tab-planes" class="tab-section hidden">
+      <section id="tab-compromisos" class="tab-section hidden">
         <!-- Sub-nav -->
         <div class="planes-subtabs">
           <button class="planes-subtab active" data-subtab="metas">🎯 Metas</button>
@@ -373,7 +373,7 @@
               <h2 class="section-title">Metas de ahorro</h2>
               <p class="section-sub">Objetivos a largo plazo · submetas mensuales</p>
             </div>
-            <button class="btn-primary" id="btn-nueva-meta">+ Meta</button>
+            <button class="btn-primary" id="btn-nueva-meta">+ Nuevo</button>
           </div>
           <div id="metas-resumen-bar" class="metas-resumen-bar"></div>
           <div id="metas-list"></div>
@@ -386,7 +386,7 @@
               <h2 class="section-title">Lista de compras</h2>
               <p class="section-sub"><span id="compras-count">0</span> items · Destinado: <span id="compras-total-destinado">$0</span></p>
             </div>
-            <button class="btn-primary" id="btn-nueva-compra">+ Nueva</button>
+            <button class="btn-primary" id="btn-nueva-compra">+ Nuevo</button>
           </div>
           <div class="compras-sugerencias-wrap" id="compras-sugerencias-wrap" style="display:none">
             <div class="card-section-header">

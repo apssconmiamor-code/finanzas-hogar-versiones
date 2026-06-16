@@ -212,7 +212,7 @@ function navegarATab(tab) {
     document.querySelectorAll(".tab-section").forEach(s => s.classList.add("hidden"));
     const sec = document.getElementById(`tab-${tab}`);
     if (sec) sec.classList.remove("hidden");
-    if (tab === "planes") activarSubtabPlanes(planesSubtabActivo);
+    if (tab === "compromisos") activarSubtabPlanes(planesSubtabActivo);
     if (tab === "resumen") renderResumen();
     if (typeof actualizarTopbarTitulo === "function") actualizarTopbarTitulo(tab);
     // update topbar avatar
@@ -2851,7 +2851,7 @@ function renderSugerenciasCompras() {
 // =============================================
 const TAB_TITLES = {
   cajas: "Cuentas", movimientos: "Ingresos / Gastos", proyeccion: "Proyección",
-  planes: "Planes", resumen: "Análisis"
+  compromisos: "Compromisos", resumen: "Análisis"
 };
 
 function actualizarTopbarTitulo(tab) {
