@@ -2337,7 +2337,7 @@ function saveMetas(metas) {
   localStorage.setItem("metas_ahorro_v2", JSON.stringify(metas));
 }
 function getCajasAhorro() {
-  return cajas.filter(c => c.nombre.toLowerCase().includes("ahorro"));
+  return cajas.filter(c => /ahorro|emergencia/i.test(c.nombre));
 }
 
 // Calcula el saldo real de una caja basado en movimientos
@@ -2464,8 +2464,8 @@ function renderMetas() {
   if (cajasAhorro.length === 0 && metas.length === 0) {
     lista.innerHTML = `<div class="empty-state">
       <div class="empty-state-icon">🎯</div>
-      <div class="empty-state-text">No tienes cajas de ahorro.<br>
-      Crea una caja con la palabra <strong>"ahorro"</strong> en el nombre para empezar.</div>
+      <div class="empty-state-text">No tienes cajas de ahorro o emergencia.<br>
+      Crea una caja con la palabra <strong>"ahorro"</strong> o <strong>"emergencia"</strong> en el nombre.</div>
     </div>`;
     return;
   }
@@ -2702,18 +2702,28 @@ function abrirRegistrarAhorro(metaId) {
   const metas = getMetas();
   const meta = metas.find(m => m.id === metaId);
   if (!meta) return;
-  const caja = cajas.find(c => c.id === meta.cajaId);
+  const cajaMeta = cajas.find(c => c.id === meta.cajaId);
   const mesActual = new Date().toISOString().slice(0, 7);
   const sugerido = Math.round(calcularAhorroPorMes(meta, mesActual));
 
   document.getElementById("ahorro-meta-id").value = metaId;
-  document.getElementById("ahorro-meta-info").textContent =
-    `${meta.icono || "🎯"} ${meta.nombre}  ·  🏦 ${caja ? caja.nombre : "Sin caja"}`;
+  document.getElementById("ahorro-meta-info").textContent = `${meta.icono || "🎯"} ${meta.nombre}`;
+
+  // Poblar selector con cajas de ahorro y emergencia
+  const cajasDisp = getCajasAhorro();
+  const sel = document.getElementById("ahorro-caja");
+  sel.innerHTML = cajasDisp.length
+    ? cajasDisp.map(c => `<option value="${c.nombre}"${c.id === meta.cajaId ? " selected" : ""}>${c.nombre}</option>`).join("")
+    : `<option value="${cajaMeta ? cajaMeta.nombre : ""}">
+        ${cajaMeta ? cajaMeta.nombre : "Sin caja asignada"}
+       </option>`;
+
   const montoInput = document.getElementById("ahorro-monto");
   montoInput.value = sugerido > 0 ? sugerido : "";
   montoInput.placeholder = sugerido > 0 ? String(sugerido) : "0";
   document.getElementById("ahorro-fecha").value = new Date().toISOString().slice(0, 10);
   document.getElementById("ahorro-desc").value = "";
+
   const hint = document.getElementById("ahorro-sugerido-hint");
   if (sugerido > 0) {
     hint.textContent = `Cuota sugerida según tu estrategia: ${formatMonto(sugerido)}/mes`;
@@ -2725,18 +2735,20 @@ function abrirRegistrarAhorro(metaId) {
 }
 
 async function guardarAhorroMeta() {
-  const metaId = document.getElementById("ahorro-meta-id").value;
-  const monto  = parseFloat(document.getElementById("ahorro-monto").value);
-  const fecha  = document.getElementById("ahorro-fecha").value;
-  const desc   = document.getElementById("ahorro-desc").value.trim();
+  const metaId   = document.getElementById("ahorro-meta-id").value;
+  const monto    = parseFloat(document.getElementById("ahorro-monto").value);
+  const fecha    = document.getElementById("ahorro-fecha").value;
+  const desc     = document.getElementById("ahorro-desc").value.trim();
+  const cajaNombre = document.getElementById("ahorro-caja").value;
 
   if (!monto || monto <= 0) { alert("Ingresa un monto válido"); return; }
   if (!fecha) { alert("Selecciona una fecha"); return; }
+  if (!cajaNombre) { alert("Selecciona una cuenta de destino"); return; }
 
   const metas = getMetas();
   const meta  = metas.find(m => m.id === metaId);
   if (!meta) return;
-  const caja = cajas.find(c => c.id === meta.cajaId);
+  const caja = cajas.find(c => c.nombre === cajaNombre);
   if (!caja) { alert("Caja no encontrada"); return; }
 
   const btn = document.getElementById("btn-guardar-ahorro");
@@ -2771,7 +2783,7 @@ function setupMetasListeners() {
   document.getElementById("btn-nueva-meta")?.addEventListener("click", () => {
     const cajasAhorro = getCajasAhorro();
     if (cajasAhorro.length === 0) {
-      alert("Crea primero una caja con la palabra 'ahorro' en su nombre.");
+      alert("Crea primero una caja con la palabra 'ahorro' o 'emergencia' en su nombre.");
       return;
     }
     const sel = document.getElementById("meta-caja");
