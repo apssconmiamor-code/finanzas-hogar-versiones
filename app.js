@@ -472,6 +472,7 @@ async function cargarTodo() {
     renderMovimientos();
     poblarFiltrosCajas();
     await cargarPresupuesto();
+    await cargarProyeccion();
     await verificarYGuardarCronologia();
     await cargarYRenderCronologia();
     await cargarPrestamos();
@@ -1008,6 +1009,50 @@ async function cargarPresupuesto() {
   }
 }
 
+async function cargarProyeccion() {
+  try {
+    const data = await Sheets.getProyeccion();
+    // Persistir en localStorage como caché offline
+    localStorage.setItem("cache_proyeccion", JSON.stringify(data));
+
+    if (data.meses && data.meses.length > 0) {
+      mesesProyeccion = data.meses;
+      localStorage.setItem("proy_meses_list", JSON.stringify(data.meses));
+    }
+    if (Object.keys(data.ingresos).length > 0) {
+      localStorage.setItem("ingresos_por_mes", JSON.stringify(data.ingresos));
+    }
+    if (Object.keys(data.gastos).length > 0) {
+      localStorage.setItem("gastos_por_mes", JSON.stringify(data.gastos));
+    }
+    renderProyeccion();
+  } catch (err) {
+    if (err.message === "TOKEN_EXPIRADO") return;
+    console.error("Error cargando proyeccion:", err);
+    // Usar caché localStorage como fallback
+    const cached = localStorage.getItem("cache_proyeccion");
+    if (cached) {
+      try {
+        const data = JSON.parse(cached);
+        if (data.meses?.length > 0) { mesesProyeccion = data.meses; }
+      } catch {}
+    }
+  }
+}
+
+async function guardarTodaProyeccion() {
+  try {
+    const meses    = getMesesProyeccion();
+    const ingresos = JSON.parse(localStorage.getItem("ingresos_por_mes") || "{}");
+    const gastos   = JSON.parse(localStorage.getItem("gastos_por_mes")   || "{}");
+    await Sheets.guardarProyeccion(meses, ingresos, gastos);
+    // Actualizar caché
+    localStorage.setItem("cache_proyeccion", JSON.stringify({ meses, ingresos, gastos }));
+  } catch (err) {
+    if (err.message !== "TOKEN_EXPIRADO") console.error("Error guardando proyeccion:", err);
+  }
+}
+
 // ---- INGRESOS POR MES (localStorage) ----
 // Estructura: { "2025-06": { SURA: 3000000, MEDFAN: 1500000, ... }, ... }
 function getIngresosMes(mes) {
@@ -1025,6 +1070,7 @@ function setIngresosMes(mes, fuentes) {
     data[mes] = fuentes;
     localStorage.setItem("ingresos_por_mes", JSON.stringify(data));
   } catch {}
+  guardarTodaProyeccion();
 }
 
 function totalIngresosMes(mes) {
@@ -1049,6 +1095,7 @@ function setGastosMes(mes, gastos) {
     data[mes] = gastos;
     localStorage.setItem("gastos_por_mes", JSON.stringify(data));
   } catch {}
+  guardarTodaProyeccion();
 }
 
 function totalGastosMes(mes) {
@@ -1108,6 +1155,7 @@ function getMesesProyeccion() {
 
 function saveMesesProyeccion() {
   try { localStorage.setItem("proy_meses_list", JSON.stringify(mesesProyeccion)); } catch {}
+  guardarTodaProyeccion();
 }
 
 function getMesesFaltantes() {

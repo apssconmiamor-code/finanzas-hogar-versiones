@@ -235,3 +235,69 @@ Sheets.existeCronologiaMes = async function(mes) {
   const rows = await this.leer(`${CONFIG.SHEETS.CRONOLOGIA}!A2:B`);
   return rows.some(r => r[1] === mes);
 };
+
+// ---- PROYECCION ----
+// Estructura hoja Proyeccion:
+// A: tipo ("mes_lista" | "ingreso" | "gasto")
+// B: mes  ("2026-06")
+// C: clave (fuente o concepto)
+// D: valor (monto numérico)
+Sheets.getProyeccion = async function() {
+  const rows = await this.leer(`${CONFIG.SHEETS.PROYECCION}!A2:D`);
+  const meses    = [];
+  const ingresos = {};
+  const gastos   = {};
+
+  rows.filter(r => r && r[0]).forEach(r => {
+    const tipo  = r[0];
+    const mes   = r[1] || "";
+    const clave = r[2] || "";
+    const valor = isNaN(parseFloat(r[3])) ? 0 : parseFloat(r[3]);
+
+    if (tipo === "mes_lista" && mes) {
+      meses.push(mes);
+    } else if (tipo === "ingreso" && mes && clave && valor > 0) {
+      if (!ingresos[mes]) ingresos[mes] = {};
+      ingresos[mes][clave] = valor;
+    } else if (tipo === "gasto" && mes && clave && valor > 0) {
+      if (!gastos[mes]) gastos[mes] = {};
+      gastos[mes][clave] = valor;
+    }
+  });
+
+  return { meses, ingresos, gastos };
+};
+
+Sheets.guardarProyeccion = async function(meses, ingresos, gastos) {
+  const values = [];
+  meses.forEach(mes => values.push(["mes_lista", mes, "", ""]));
+  Object.entries(ingresos).forEach(([mes, fuentes]) => {
+    Object.entries(fuentes).forEach(([fuente, monto]) => {
+      if (monto > 0) values.push(["ingreso", mes, fuente, monto]);
+    });
+  });
+  Object.entries(gastos).forEach(([mes, conceptos]) => {
+    Object.entries(conceptos || {}).forEach(([concepto, monto]) => {
+      if (monto > 0) values.push(["gasto", mes, concepto, monto]);
+    });
+  });
+
+  const clearRes = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SPREADSHEET_ID}/values/${encodeURIComponent(CONFIG.SHEETS.PROYECCION + "!A2:D")}:clear`,
+    { method: "POST", headers: { Authorization: `Bearer ${this.token}`, "Content-Type": "application/json" } }
+  );
+  if (clearRes.status === 401) { Sheets._renovarToken(); throw new Error("TOKEN_EXPIRADO"); }
+  if (!clearRes.ok) throw new Error(`Error limpiando proyeccion: ${clearRes.status}`);
+  if (values.length === 0) return;
+
+  const writeRes = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SPREADSHEET_ID}/values/${encodeURIComponent(CONFIG.SHEETS.PROYECCION + "!A2")}?valueInputOption=RAW`,
+    {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${this.token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ values })
+    }
+  );
+  if (!writeRes.ok) throw new Error(`Error guardando proyeccion: ${writeRes.status}`);
+  return writeRes.json();
+};
