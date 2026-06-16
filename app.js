@@ -2718,6 +2718,24 @@ function borrarMeta(id) {
   renderMetas();
 }
 
+function poblarOrigenAhorro(monto) {
+  const destNombre = document.getElementById("ahorro-caja")?.value || "";
+  const sel = document.getElementById("ahorro-caja-origen");
+  if (!sel) return;
+  const montoNum = parseFloat(monto) || 0;
+  const valorPrevio = sel.value;
+  const cajasDisp = cajas.filter(c => {
+    if (c.nombre === destNombre) return false;
+    if (montoNum <= 0) return true;
+    return calcularSaldoCaja(c.nombre) >= montoNum;
+  });
+  sel.innerHTML = `<option value="">Selecciona una cuenta…</option>` +
+    cajasDisp.map(c => {
+      const saldo = calcularSaldoCaja(c.nombre);
+      return `<option value="${c.nombre}"${c.nombre === valorPrevio ? " selected" : ""}>${c.nombre} · ${formatMonto(Math.max(0, saldo))}</option>`;
+    }).join("");
+}
+
 function abrirRegistrarAhorro(metaId) {
   const metas = getMetas();
   const meta = metas.find(m => m.id === metaId);
@@ -2736,18 +2754,14 @@ function abrirRegistrarAhorro(metaId) {
     ? cajasDestino.map(c => `<option value="${c.nombre}"${c.id === meta.cajaId ? " selected" : ""}>${c.nombre}</option>`).join("")
     : `<option value="${cajaMeta ? cajaMeta.nombre : ""}">${cajaMeta ? cajaMeta.nombre : "Sin caja"}</option>`;
 
-  // Origen: todas las cajas excepto la seleccionada como destino
-  const destNombreActual = selDest.value;
-  const selOrig = document.getElementById("ahorro-caja-origen");
-  selOrig.innerHTML = `<option value="">Selecciona una cuenta…</option>` +
-    cajas.filter(c => c.nombre !== destNombreActual)
-         .map(c => `<option value="${c.nombre}">${c.nombre}</option>`).join("");
-
   const montoInput = document.getElementById("ahorro-monto");
   montoInput.value = sugerido > 0 ? sugerido : "";
   montoInput.placeholder = sugerido > 0 ? String(sugerido) : "0";
   document.getElementById("ahorro-fecha").value = new Date().toISOString().slice(0, 10);
   document.getElementById("ahorro-desc").value = "";
+
+  // Origen: filtrado por saldo suficiente para cubrir el monto sugerido
+  poblarOrigenAhorro(sugerido);
 
   const hint = document.getElementById("ahorro-sugerido-hint");
   if (sugerido > 0) {
@@ -2862,7 +2876,12 @@ function setupMetasListeners() {
   });
   document.getElementById("meta-pct-custom")?.addEventListener("input", actualizarEstrategiaCalculo);
 
-  // Modal registrar ahorro
+  // Modal registrar ahorro — re-filtrar origen al cambiar monto o destino
+  document.getElementById("ahorro-monto")?.addEventListener("input", () =>
+    poblarOrigenAhorro(document.getElementById("ahorro-monto").value));
+  document.getElementById("ahorro-caja")?.addEventListener("change", () =>
+    poblarOrigenAhorro(document.getElementById("ahorro-monto").value));
+
   document.getElementById("btn-cancelar-ahorro")?.addEventListener("click", () =>
     document.getElementById("modal-registrar-ahorro").classList.add("hidden"));
   document.getElementById("btn-guardar-ahorro")?.addEventListener("click", guardarAhorroMeta);
