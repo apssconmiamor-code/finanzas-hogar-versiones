@@ -1334,11 +1334,7 @@ function render4MesesResumen() {
     const label = new Date(mes + "-15").toLocaleDateString("es-CO", { month: "short", year: "2-digit" });
     const ingEst = totalIngresosMes(mes) || presupuesto.filter(p => p.ingresoEstimado > 0).reduce((s, p) => s + p.ingresoEstimado, 0);
     const gastosEstimados = totalGastosMes(mes);
-    const movsM  = movimientos.filter(m => m.fecha.startsWith(mes));
-    const gastReal = movsM.filter(m => m.categoria !== "Ingreso" && m.categoria !== "Transferencia").reduce((s, m) => s + Math.abs(m.monto), 0);
-    const ingReal  = movsM.filter(m => m.categoria === "Ingreso").reduce((s, m) => s + m.monto, 0);
     const excEst  = ingEst - gastosEstimados;
-    const excReal = ingReal - gastReal;
     const isActivo = mes === proyMesActivo;
     const puedeEliminar = meses.length > 1;
 
@@ -1350,12 +1346,6 @@ function render4MesesResumen() {
       <div class="proy-4m-row" style="color:${excEst>=0?"var(--green)":"var(--red)"}">
         <span>Excedente</span><strong>${formatMonto(excEst)}</strong>
       </div>
-      ${ingReal > 0 || gastReal > 0 ? `
-      <div class="proy-4m-divider"></div>
-      <div class="proy-4m-row" style="font-size:11px"><span>Real ingresos</span><strong>${formatMonto(ingReal)}</strong></div>
-      <div class="proy-4m-row" style="font-size:11px"><span>Real gastos</span><strong>${formatMonto(gastReal)}</strong></div>
-      <div class="proy-4m-row" style="font-size:11px;color:${excReal>=0?"var(--green)":"var(--red)"}"><span>Real excedente</span><strong>${formatMonto(excReal)}</strong></div>
-      ` : ""}
     </div>`;
   }).join("") + "</div>";
 
