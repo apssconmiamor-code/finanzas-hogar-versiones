@@ -15,6 +15,7 @@ const CONFIG = {
     CRONOLOGIA: "Cronologia",
     PRESTAMO: "Prestamo",
     COMPRAS: "Compras",
-    PROYECCION: "Proyeccion"
+    PROYECCION: "Proyeccion",
+    METAS: "Metas"
   }
 };

@@ -2335,6 +2335,7 @@ function getMetas() {
 }
 function saveMetas(metas) {
   localStorage.setItem("metas_ahorro_v2", JSON.stringify(metas));
+  Sheets.guardarMetas(metas).catch(err => console.warn("Error sincronizando metas:", err));
 }
 function getCajasAhorro() {
   return cajas.filter(c => /ahorro|emergencia/i.test(c.nombre));
@@ -2425,7 +2426,16 @@ function generarSubmetasDesde(meta) {
   return submetas;
 }
 
-async function cargarMetas() { renderMetas(); }
+async function cargarMetas() {
+  renderMetas(); // mostrar caché inmediatamente
+  try {
+    const metasSheet = await Sheets.getMetas();
+    localStorage.setItem("metas_ahorro_v2", JSON.stringify(metasSheet));
+    renderMetas();
+  } catch (err) {
+    console.warn("Error cargando metas desde Sheets:", err);
+  }
+}
 
 function renderMetas() {
   const lista = document.getElementById("metas-list");

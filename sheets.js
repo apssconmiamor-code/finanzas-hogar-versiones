@@ -301,3 +301,47 @@ Sheets.guardarProyeccion = async function(meses, ingresos, gastos) {
   if (!writeRes.ok) throw new Error(`Error guardando proyeccion: ${writeRes.status}`);
   return writeRes.json();
 };
+
+// ---- METAS DE AHORRO ----
+// Columnas: A=id | B=nombre | C=icono | D=cajaId | E=objetivo | F=fechaLimite | G=estrategia | H=estrategiaValor
+Sheets.getMetas = async function() {
+  const rows = await this.leer(`${CONFIG.SHEETS.METAS}!A2:H`);
+  return rows.filter(r => r && r[0]).map(r => ({
+    id:              r[0] || "",
+    nombre:          r[1] || "",
+    icono:           r[2] || "🎯",
+    cajaId:          r[3] || "",
+    objetivo:        isNaN(parseFloat(r[4])) ? 0 : parseFloat(r[4]),
+    fechaLimite:     r[5] || "",
+    estrategia:      r[6] || "calculada",
+    estrategiaValor: isNaN(parseFloat(r[7])) ? 0 : parseFloat(r[7]),
+    submetas:        []
+  }));
+};
+
+Sheets.guardarMetas = async function(metas) {
+  const clearRes = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SPREADSHEET_ID}/values/${encodeURIComponent(CONFIG.SHEETS.METAS + "!A2:H")}:clear`,
+    { method: "POST", headers: { Authorization: `Bearer ${this.token}`, "Content-Type": "application/json" } }
+  );
+  if (clearRes.status === 401) { Sheets._renovarToken(); throw new Error("TOKEN_EXPIRADO"); }
+  if (!clearRes.ok) throw new Error(`Error limpiando metas: ${clearRes.status}`);
+  if (metas.length === 0) return;
+
+  const values = metas.map(m => [
+    m.id, m.nombre, m.icono || "🎯", m.cajaId,
+    m.objetivo || 0, m.fechaLimite || "",
+    m.estrategia || "calculada", m.estrategiaValor || 0
+  ]);
+
+  const writeRes = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SPREADSHEET_ID}/values/${encodeURIComponent(CONFIG.SHEETS.METAS + "!A2")}?valueInputOption=RAW`,
+    {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${this.token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ values })
+    }
+  );
+  if (!writeRes.ok) throw new Error(`Error guardando metas: ${writeRes.status}`);
+  return writeRes.json();
+};
