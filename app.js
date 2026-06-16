@@ -2462,8 +2462,8 @@ function renderMetas() {
   if (resBar) {
     const totalObj = metas.reduce((s, m) => s + (m.objetivo || 0), 0);
     const totalReal = metas.reduce((s, m) => {
-      const saldo = getSaldoCaja(m.cajaId);
-      return s + Math.max(0, saldo);
+      const cajaObj = cajas.find(c => c.id === m.cajaId);
+      return s + Math.max(0, getSaldoCajaMeta(cajaObj));
     }, 0);
     const pct = totalObj > 0 ? Math.min(100, Math.round((totalReal / totalObj) * 100)) : 0;
     resBar.innerHTML = `
