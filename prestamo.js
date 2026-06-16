@@ -197,55 +197,53 @@ function renderPrestamos() {
     const pagado    = p.pagado ? p.monto : calcularPagadoPrestamo(p.nombre);
     const pendiente = Math.max(p.monto - pagado, 0);
     const pct       = pctPrestamo(p);
-    const barClass  = pct >= 100 ? "estado-ok" : pct >= 70 ? "estado-alerta" : "prest-bar-low";
-    const concepto  = conceptoPrestamo(p.nombre);
+    const barColor  = pct >= 100 ? "var(--green)" : "var(--blue)";
 
     return `
       <div class="prestamo-card ${p.pagado ? "prestamo-pagado" : ""}">
-        <div class="prestamo-card-header">
-          <div class="prestamo-nombre">${p.nombre}</div>
-          ${p.pagado
-            ? `<span class="prestamo-badge pagado-badge">✅ Pagado</span>`
-            : `<span class="prestamo-badge activo-badge">En curso</span>`}
-        </div>
-
-        <div class="prestamo-concepto-tag">
-          <span class="concepto-chip">📌 ${concepto}</span>
-        </div>
-
-        <div class="prestamo-montos">
-          <div class="prestamo-monto-item">
-            <span class="prestamo-monto-label">Total</span>
-            <span class="prestamo-monto-val">${formatMonto(p.monto)}</span>
+        <div class="prest-left-bar" style="background:${p.pagado ? "var(--green)" : "var(--red)"}"></div>
+        <div class="prest-body">
+          <div class="prest-header">
+            <span class="prestamo-nombre">${p.nombre}</span>
+            ${p.pagado
+              ? `<span class="prestamo-badge pagado-badge">✅ Pagado</span>`
+              : `<span class="prestamo-badge activo-badge">En curso</span>`}
           </div>
-          <div class="prestamo-monto-item">
-            <span class="prestamo-monto-label">Pagado</span>
-            <span class="prestamo-monto-val prest-verde">${formatMonto(pagado)}</span>
-          </div>
-          <div class="prestamo-monto-item">
-            <span class="prestamo-monto-label">Pendiente</span>
-            <span class="prestamo-monto-val prest-rojo">${formatMonto(pendiente)}</span>
-          </div>
-        </div>
 
-        <div class="prestamo-progress">
-          <div class="pct-bar-bg" style="height:8px;border-radius:4px">
-            <div class="pct-bar ${barClass}" style="width:${pct}%;height:8px;border-radius:4px;transition:width 0.4s ease"></div>
+          <div class="prest-progress-row">
+            <div class="prest-bar-bg">
+              <div class="prest-bar-fill" style="width:${pct}%;background:${barColor}"></div>
+            </div>
+            <span class="prest-pct">${pct}%</span>
           </div>
-          <span class="prestamo-pct ${barClass === 'estado-ok' ? 'pct-label estado-ok' : barClass === 'estado-alerta' ? 'pct-label estado-alerta' : 'pct-label prest-pct-low'}">${pct}%</span>
-        </div>
 
-        ${p.cuotas > 0 ? `<div class="prestamo-cuotas">🗓️ ${p.cuotas} cuota${p.cuotas > 1 ? "s" : ""} · Inicio: ${p.fechaInicio || "—"}</div>` : ""}
-        ${p.descripcion ? `<div class="prestamo-desc">${p.descripcion}</div>` : ""}
+          <div class="prest-montos">
+            <div class="prest-monto-item">
+              <span class="prest-monto-label">Total</span>
+              <span class="prest-monto-val">${formatMonto(p.monto)}</span>
+            </div>
+            <div class="prest-monto-item">
+              <span class="prest-monto-label">Pagado</span>
+              <span class="prest-monto-val" style="color:var(--green)">${formatMonto(pagado)}</span>
+            </div>
+            <div class="prest-monto-item">
+              <span class="prest-monto-label">Por pagar</span>
+              <span class="prest-monto-val" style="color:var(--red)">${formatMonto(pendiente)}</span>
+            </div>
+          </div>
 
-        <div class="prestamo-acciones">
-          ${!p.pagado ? `
-            <button class="btn-prest-pago btn-primary"
-              onclick="abrirPagoRapido('${p.id}', '${escapeAttr(p.nombre)}', ${pendiente})">
-              💳 Registrar pago
-            </button>` : ""}
-          <button class="btn-accion btn-borrar" title="Eliminar préstamo"
-            onclick="borrarPrestamo('${p.id}')">🗑️</button>
+          ${p.cuotas > 0 ? `<div class="prest-meta-row">🗓️ ${p.cuotas} cuota${p.cuotas > 1 ? "s" : ""} · Inicio: ${p.fechaInicio || "—"}</div>` : ""}
+          ${p.descripcion ? `<div class="prest-meta-row prest-desc">${p.descripcion}</div>` : ""}
+
+          <div class="prestamo-acciones">
+            ${!p.pagado ? `
+              <button class="btn-primary btn-prest-pago"
+                onclick="abrirPagoRapido('${p.id}', '${escapeAttr(p.nombre)}', ${pendiente})">
+                💳 Registrar pago
+              </button>` : ""}
+            <button class="btn-accion btn-borrar" title="Eliminar préstamo"
+              onclick="borrarPrestamo('${p.id}')">🗑️</button>
+          </div>
         </div>
       </div>`;
   };

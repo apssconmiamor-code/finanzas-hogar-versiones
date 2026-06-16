@@ -351,65 +351,11 @@
         </div>
       </section>
 
-      <!-- ══ TAB: PLANES (Metas + Compras + Préstamos) ══ -->
+      <!-- ══ TAB: COMPROMISOS (Préstamos + Compras) ══ -->
       <section id="tab-compromisos" class="tab-section hidden">
-        <!-- Sub-nav -->
-        <div class="planes-subtabs">
-          <button class="planes-subtab active" data-subtab="metas">🎯 Metas</button>
-          <button class="planes-subtab" data-subtab="compras">🛍️ Compras</button>
-          <button class="planes-subtab" data-subtab="prestamos">💳 Préstamos</button>
-        </div>
 
-        <!-- Panel Metas -->
-        <div id="planes-panel-metas" class="planes-panel">
-          <div class="section-header">
-            <div>
-              <h2 class="section-title">Metas de ahorro</h2>
-              <p class="section-sub">Objetivos a largo plazo · submetas mensuales</p>
-            </div>
-            <button class="btn-primary" id="btn-nueva-meta">+ Nuevo</button>
-          </div>
-          <div id="metas-resumen-bar" class="metas-resumen-bar"></div>
-          <div id="metas-list"></div>
-        </div>
-
-        <!-- Panel Compras -->
-        <div id="planes-panel-compras" class="planes-panel hidden">
-          <div class="section-header">
-            <div>
-              <h2 class="section-title">Lista de compras</h2>
-              <p class="section-sub"><span id="compras-count">0</span> items · Destinado: <span id="compras-total-destinado">$0</span></p>
-            </div>
-            <button class="btn-primary" id="btn-nueva-compra">+ Nuevo</button>
-          </div>
-          <div class="compras-sugerencias-wrap" id="compras-sugerencias-wrap" style="display:none">
-            <div class="card-section-header">
-              <span class="card-section-title">💡 Puedes comprar con tu excedente</span>
-              <span id="compras-sugerencias-sub" class="card-section-sub"></span>
-            </div>
-            <div id="compras-sugerencias-list"></div>
-          </div>
-          <div class="filtros-bar">
-            <select class="input-sm" id="filtro-compras-urgencia">
-              <option value="">Todas las urgencias</option>
-              <option value="Alta">🔴 Alta</option>
-              <option value="Media">🟡 Media</option>
-              <option value="Baja">🟢 Baja</option>
-            </select>
-            <select class="input-sm" id="filtro-compras-categoria">
-              <option value="">Todas las categorías</option>
-              <option value="Hogar">Hogar</option>
-              <option value="Tecnología">Tecnología</option>
-              <option value="Ropa">Ropa</option>
-              <option value="Salud">Salud</option>
-              <option value="Otros">Otros</option>
-            </select>
-          </div>
-          <div id="compras-list"></div>
-        </div>
-
-        <!-- Panel Préstamos -->
-        <div id="planes-panel-prestamos" class="planes-panel hidden">
+        <!-- Préstamos -->
+        <div id="planes-panel-prestamos" class="planes-panel">
           <div class="section-header">
             <div>
               <h2 class="section-title">Préstamos</h2>
@@ -423,6 +369,18 @@
             <div class="resumen-item pendiente"><span class="resumen-label">Por pagar</span><span id="prest-total-pendiente" class="resumen-valor">$0</span></div>
           </div>
           <div id="prestamos-grid" class="prestamos-grid"><div class="loading-state">Cargando…</div></div>
+        </div>
+
+        <!-- Compras -->
+        <div id="planes-panel-compras" class="planes-panel">
+          <div class="section-header">
+            <div>
+              <h2 class="section-title">Lista de compras</h2>
+              <p class="section-sub"><span id="compras-count">0</span> items · Destinado: <span id="compras-total-destinado">$0</span></p>
+            </div>
+            <button class="btn-primary" id="btn-nueva-compra">+ Nuevo</button>
+          </div>
+          <div id="compras-list"></div>
         </div>
       </section>
 
@@ -479,124 +437,6 @@
     </nav>
 
     <!-- ══ MODALES GLOBALES ══ -->
-
-    <!-- Modal nueva meta -->
-    <div id="modal-meta" class="modal hidden">
-      <div class="modal-card">
-        <h3 class="modal-title">Nueva meta de ahorro</h3>
-        <p class="modal-subtitle">Define un objetivo a largo plazo ligado a una caja de ahorro.</p>
-        <div class="form-row">
-          <div class="form-group" style="flex:2">
-            <label>Nombre de la meta</label>
-            <input class="input" id="meta-nombre" type="text" placeholder="Ej: Viaje a Europa, Fondo de emergencia…"/>
-          </div>
-          <div class="form-group" style="flex:0 0 60px">
-            <label>Icono</label>
-            <select class="input" id="meta-icono">
-              <option>🎯</option><option>✈️</option><option>🏠</option><option>🚗</option>
-              <option>📱</option><option>💍</option><option>🎓</option><option>🏖️</option>
-              <option>💻</option><option>🐶</option><option>👶</option><option>💰</option>
-              <option>🏋️</option><option>🎸</option><option>🌎</option>
-            </select>
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>Caja de ahorro</label>
-            <select class="input" id="meta-caja"></select>
-          </div>
-          <div class="form-group">
-            <label>Objetivo total ($)</label>
-            <input class="input" id="meta-objetivo" type="number" inputmode="decimal" placeholder="0"/>
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>Fecha límite <span class="label-opcional">(opcional)</span></label>
-            <input class="input" id="meta-fecha" type="date"/>
-          </div>
-        </div>
-        <!-- Estrategia de ahorro mensual -->
-        <div class="meta-estrategia-wrap" id="meta-estrategia-wrap">
-          <div class="meta-estrategia-title">💡 Estrategia de ahorro mensual</div>
-          <p class="meta-estrategia-sub" id="meta-estrategia-sub">Elige cómo quieres comprometerte cada mes</p>
-          <div class="meta-estrategia-opts" id="meta-estrategia-opts">
-            <button type="button" class="estrategia-btn active" data-estrategia="calculada">
-              <span class="estrategia-icon">🤖</span>
-              <span class="estrategia-label">Calculada</span>
-              <span class="estrategia-sub">Auto según fecha y objetivo</span>
-            </button>
-            <button type="button" class="estrategia-btn" data-estrategia="cuotas">
-              <span class="estrategia-icon">📅</span>
-              <span class="estrategia-label">Cuotas fijas</span>
-              <span class="estrategia-sub">Monto igual cada mes</span>
-            </button>
-            <button type="button" class="estrategia-btn" data-estrategia="custom-pct">
-              <span class="estrategia-icon">%</span>
-              <span class="estrategia-label">% personalizado</span>
-              <span class="estrategia-sub">Del ingreso mensual</span>
-            </button>
-          </div>
-          <div id="meta-estrategia-input" style="margin-top:10px">
-            <div id="estrategia-calculada-info" class="estrategia-info-box">
-              <span id="estrategia-calculada-texto">Ingresa el objetivo y la fecha límite para calcular automáticamente.</span>
-            </div>
-            <div id="estrategia-cuotas-input" class="hidden">
-              <div class="estrategia-info-box" id="estrategia-cuotas-info">Ingresa el objetivo y la fecha límite para calcular la cuota.</div>
-              <div style="margin-top:8px">
-                <label>O ingresa un monto fijo mensual ($)</label>
-                <input class="input" id="meta-monto-fijo" type="number" inputmode="decimal" placeholder="0" style="margin-top:6px"/>
-              </div>
-            </div>
-            <div id="estrategia-custom-pct-input" class="hidden">
-              <label>Porcentaje mensual del ingreso (%)</label>
-              <input class="input" id="meta-pct-custom" type="number" min="1" max="100" placeholder="Ej: 15" style="margin-top:6px"/>
-              <div class="estrategia-info-box" id="estrategia-pct-preview" style="margin-top:8px"></div>
-            </div>
-          </div>
-        </div>
-        <div class="modal-actions">
-          <button class="btn-secondary" id="btn-cancelar-meta">Cancelar</button>
-          <button class="btn-primary" id="btn-guardar-meta">Crear meta</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Modal registrar ahorro meta -->
-    <div id="modal-registrar-ahorro" class="modal hidden">
-      <div class="modal-card">
-        <h3 class="modal-title">Registrar ahorro</h3>
-        <input type="hidden" id="ahorro-meta-id"/>
-        <div id="ahorro-meta-info" class="ahorro-meta-info-label"></div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>Sale de</label>
-            <select id="ahorro-caja-origen" class="input"></select>
-          </div>
-          <div class="form-group">
-            <label>Entra a</label>
-            <select id="ahorro-caja" class="input"></select>
-          </div>
-        </div>
-        <div class="form-group">
-          <label>Monto</label>
-          <input id="ahorro-monto" type="number" inputmode="decimal" placeholder="0" class="input"/>
-          <span id="ahorro-sugerido-hint" class="mov-saldo-hint hidden"></span>
-        </div>
-        <div class="form-group">
-          <label>Fecha</label>
-          <input id="ahorro-fecha" type="date" class="input"/>
-        </div>
-        <div class="form-group">
-          <label>Descripción <span class="label-opcional">(opcional)</span></label>
-          <input id="ahorro-desc" type="text" placeholder="Ahorro mensual, extra…" class="input"/>
-        </div>
-        <div class="modal-actions">
-          <button class="btn-secondary" id="btn-cancelar-ahorro">Cancelar</button>
-          <button class="btn-primary" id="btn-guardar-ahorro">Registrar</button>
-        </div>
-      </div>
-    </div>
 
     <!-- Modal nueva compra -->
     <div id="modal-compra" class="modal hidden">

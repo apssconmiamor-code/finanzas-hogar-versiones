@@ -90,18 +90,9 @@ function renderCompras() {
   const lista = document.getElementById("compras-list");
   if (!lista) return;
 
-  const filtroUrg = document.getElementById("filtro-compras-urgencia")?.value || "";
-  const filtroCat = document.getElementById("filtro-compras-categoria")?.value || "";
-
-  let filtradas = compras.filter(c => {
-    if (filtroUrg && c.urgencia !== filtroUrg) return false;
-    if (filtroCat && c.categoria !== filtroCat) return false;
-    return true;
-  });
-
   // Ordenar: Alta → Media → Baja, luego por fecha desc
   const orden = { "Alta": 0, "Media": 1, "Baja": 2 };
-  filtradas.sort((a, b) => {
+  const filtradas = [...compras].sort((a, b) => {
     const diff = (orden[a.urgencia] ?? 1) - (orden[b.urgencia] ?? 1);
     if (diff !== 0) return diff;
     return b.fecha.localeCompare(a.fecha);
@@ -144,11 +135,6 @@ function renderCompras() {
                 ? `<span class="compra-monto">${formatMonto(c.montoDestinado)}</span>`
                 : `<span class="compra-monto-vacio">Sin monto</span>`}
             </div>
-          </div>
-          <div class="compra-meta">
-            <span>${c.fecha}</span>
-            <span>·</span>
-            <span>${c.autor}</span>
           </div>
           <div class="compra-acciones">
             <button class="btn-comprar btn-primary"
@@ -375,11 +361,6 @@ function setupComprasListeners() {
   document.getElementById("btn-guardar-compra")
     .addEventListener("click", guardarCompra);
 
-  document.getElementById("filtro-compras-urgencia")
-    ?.addEventListener("change", renderCompras);
-  document.getElementById("filtro-compras-categoria")
-    ?.addEventListener("change", renderCompras);
-
   document.getElementById("modal-compra")
     .addEventListener("click", (e) => {
       if (e.target === document.getElementById("modal-compra")) {
@@ -391,12 +372,6 @@ function setupComprasListeners() {
   document.getElementById("btn-cancelar-mov")
     .addEventListener("click", _limpiarCompraContexto, { capture: false });
 
-  document.querySelectorAll(".nav-item[data-tab='compras']").forEach(btn => {
-    btn.addEventListener("click", () => {
-      cargarCompras();
-      if (typeof renderSugerenciasCompras === "function") renderSugerenciasCompras();
-    });
-  });
 }
 
 if (document.readyState === "loading") {
