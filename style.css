@@ -985,6 +985,42 @@ body {
 }
 .btn-agregar-mes:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-soft); }
 
+/* ═══════════════ TAB PLANES (sub-tabs) ═══════════════ */
+.planes-subtabs {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.planes-subtabs::-webkit-scrollbar { display: none; }
+.planes-subtab {
+  flex: 1;
+  padding: 9px 14px;
+  border: 1.5px solid var(--border-mid);
+  border-radius: 20px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+  text-align: center;
+}
+.planes-subtab.active {
+  background: var(--blue);
+  color: #fff;
+  border-color: var(--blue);
+}
+.planes-subtab:not(.active):hover {
+  border-color: var(--blue);
+  color: var(--blue);
+  background: var(--blue-soft);
+}
+
 /* Tarjeta de mes activa en la grid */
 .proy-4m-card { cursor: pointer; user-select: none; }
 .proy-4m-card.proy-4m-active { border-color: var(--blue); background: var(--blue-soft); }

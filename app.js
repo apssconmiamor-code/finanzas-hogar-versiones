@@ -190,16 +190,30 @@ async function mostrarApp() {
 // ---- NAVEGACIÓN ----
 
 function setupEventListeners() {
+  let planesSubtabActivo = "metas";
+
+  function activarSubtabPlanes(subtab) {
+    subtab = subtab || planesSubtabActivo || "metas";
+    planesSubtabActivo = subtab;
+    document.querySelectorAll(".planes-panel").forEach(p => p.classList.add("hidden"));
+    const panel = document.getElementById(`planes-panel-${subtab}`);
+    if (panel) panel.classList.remove("hidden");
+    document.querySelectorAll(".planes-subtab").forEach(b =>
+      b.classList.toggle("active", b.dataset.subtab === subtab));
+    if (subtab === "prestamos") cargarPrestamos();
+    if (subtab === "metas") cargarMetas();
+    if (subtab === "compras") { cargarCompras(); renderSugerenciasCompras(); }
+  }
+  window.activarSubtabPlanes = activarSubtabPlanes;
+
 function navegarATab(tab) {
     document.querySelectorAll(".nav-item").forEach(b =>
       b.classList.toggle("active", b.dataset.tab === tab));
     document.querySelectorAll(".tab-section").forEach(s => s.classList.add("hidden"));
     const sec = document.getElementById(`tab-${tab}`);
     if (sec) sec.classList.remove("hidden");
-    if (tab === "prestamos") cargarPrestamos();
+    if (tab === "planes") activarSubtabPlanes(planesSubtabActivo);
     if (tab === "resumen") renderResumen();
-    if (tab === "metas") cargarMetas();
-    if (tab === "compras") { cargarCompras(); renderSugerenciasCompras(); }
     if (typeof actualizarTopbarTitulo === "function") actualizarTopbarTitulo(tab);
     // update topbar avatar
     const ta = document.getElementById("topbar-avatar");
@@ -211,12 +225,19 @@ function navegarATab(tab) {
     btn.addEventListener("click", () => navegarATab(btn.dataset.tab));
   });
 
+  // Sub-tabs inside planes
+  document.querySelectorAll(".planes-subtab").forEach(btn => {
+    btn.addEventListener("click", () => activarSubtabPlanes(btn.dataset.subtab));
+  });
+
   // Dropdown tab navigation
   document.querySelectorAll("[data-tab-nav]").forEach(btn => {
     btn.addEventListener("click", () => {
       const tab = btn.dataset.tabNav;
+      const subtab = btn.dataset.subtabTarget;
       document.getElementById("dropdown-menu").classList.add("hidden");
       navegarATab(tab);
+      if (subtab) activarSubtabPlanes(subtab);
     });
   });
 document.getElementById("btn-refrescar")?.addEventListener("click", cargarTodo);
@@ -2830,7 +2851,7 @@ function renderSugerenciasCompras() {
 // =============================================
 const TAB_TITLES = {
   cajas: "Cuentas", movimientos: "Ingresos / Gastos", proyeccion: "Proyección",
-  metas: "Metas", compras: "Compras", prestamos: "Préstamos", resumen: "Análisis"
+  planes: "Planes", resumen: "Análisis"
 };
 
 function actualizarTopbarTitulo(tab) {

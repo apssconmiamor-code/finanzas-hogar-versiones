@@ -55,16 +55,10 @@
         <button class="nav-item" data-tab="proyeccion">
           <span class="nav-icon">📊</span><span>Proyección</span>
         </button>
-        <button class="nav-item" data-tab="metas">
-          <span class="nav-icon">🎯</span><span>Metas</span>
+        <button class="nav-item" data-tab="planes">
+          <span class="nav-icon">🗂️</span><span>Planes</span>
         </button>
         <div class="sidebar-divider"></div>
-        <button class="nav-item" data-tab="compras">
-          <span class="nav-icon">🛍️</span><span>Compras</span>
-        </button>
-        <button class="nav-item" data-tab="prestamos">
-          <span class="nav-icon">💳</span><span>Préstamos</span>
-        </button>
         <button class="nav-item" data-tab="resumen">
           <span class="nav-icon">📈</span><span>Resumen</span>
         </button>
@@ -98,17 +92,17 @@
           <div id="dropdown-menu" class="dropdown-menu hidden">
             <div class="dropdown-header" id="dropdown-user-info"></div>
             <div class="dropdown-section-label">Secciones</div>
-            <button class="dropdown-item" data-tab-nav="compras">
+            <button class="dropdown-item" data-tab-nav="planes" data-subtab-target="metas">
+              <span class="dd-icon">🎯</span> Metas
+            </button>
+            <button class="dropdown-item" data-tab-nav="planes" data-subtab-target="compras">
               <span class="dd-icon">🛍️</span> Compras
             </button>
-            <button class="dropdown-item" data-tab-nav="prestamos">
+            <button class="dropdown-item" data-tab-nav="planes" data-subtab-target="prestamos">
               <span class="dd-icon">💳</span> Préstamos
             </button>
             <button class="dropdown-item" data-tab-nav="resumen">
               <span class="dd-icon">📈</span> Análisis
-            </button>
-            <button class="dropdown-item" data-tab-nav="metas">
-              <span class="dd-icon">🎯</span> Metas
             </button>
             <div class="dropdown-divider"></div>
             <button class="dropdown-item" id="dd-sync">
@@ -363,131 +357,78 @@
         </div>
       </section>
 
-      <!-- ══ TAB: METAS ══ -->
-      <section id="tab-metas" class="tab-section hidden">
-        <div class="section-header">
-          <div>
-            <h2 class="section-title">Metas de ahorro</h2>
-            <p class="section-sub">Objetivos a largo plazo · submetas mensuales</p>
-          </div>
-          <button class="btn-primary" id="btn-nueva-meta">+ Meta</button>
+      <!-- ══ TAB: PLANES (Metas + Compras + Préstamos) ══ -->
+      <section id="tab-planes" class="tab-section hidden">
+        <!-- Sub-nav -->
+        <div class="planes-subtabs">
+          <button class="planes-subtab active" data-subtab="metas">🎯 Metas</button>
+          <button class="planes-subtab" data-subtab="compras">🛍️ Compras</button>
+          <button class="planes-subtab" data-subtab="prestamos">💳 Préstamos</button>
         </div>
-        <div id="metas-resumen-bar" class="metas-resumen-bar"></div>
-        <div id="metas-list"></div>
-      </section>
 
-      <!-- ══ TAB: COMPRAS ══ -->
-      <section id="tab-compras" class="tab-section hidden">
-        <div class="section-header">
-          <div>
-            <h2 class="section-title">Lista de compras</h2>
-            <p class="section-sub"><span id="compras-count">0</span> items · Destinado: <span id="compras-total-destinado">$0</span></p>
+        <!-- Panel Metas -->
+        <div id="planes-panel-metas" class="planes-panel">
+          <div class="section-header">
+            <div>
+              <h2 class="section-title">Metas de ahorro</h2>
+              <p class="section-sub">Objetivos a largo plazo · submetas mensuales</p>
+            </div>
+            <button class="btn-primary" id="btn-nueva-meta">+ Meta</button>
           </div>
-          <button class="btn-primary" id="btn-nueva-compra">+ Nueva</button>
+          <div id="metas-resumen-bar" class="metas-resumen-bar"></div>
+          <div id="metas-list"></div>
         </div>
-        <div class="compras-sugerencias-wrap" id="compras-sugerencias-wrap" style="display:none">
-          <div class="card-section-header">
-            <span class="card-section-title">💡 Puedes comprar con tu excedente</span>
-            <span id="compras-sugerencias-sub" class="card-section-sub"></span>
-          </div>
-          <div id="compras-sugerencias-list"></div>
-        </div>
-        <div class="filtros-bar">
-          <select class="input-sm" id="filtro-compras-urgencia">
-            <option value="">Todas las urgencias</option>
-            <option value="Alta">🔴 Alta</option>
-            <option value="Media">🟡 Media</option>
-            <option value="Baja">🟢 Baja</option>
-          </select>
-          <select class="input-sm" id="filtro-compras-categoria">
-            <option value="">Todas las categorías</option>
-            <option value="Hogar">Hogar</option>
-            <option value="Tecnología">Tecnología</option>
-            <option value="Ropa">Ropa</option>
-            <option value="Salud">Salud</option>
-            <option value="Otros">Otros</option>
-          </select>
-        </div>
-        <div id="compras-list"></div>
-      </section>
 
-      <!-- ══ TAB: PRÉSTAMOS ══ -->
-      <section id="tab-prestamos" class="tab-section hidden">
-        <div class="section-header">
-          <div>
-            <h2 class="section-title">Préstamos</h2>
-            <p class="section-sub">Seguimiento de deudas y pagos</p>
+        <!-- Panel Compras -->
+        <div id="planes-panel-compras" class="planes-panel hidden">
+          <div class="section-header">
+            <div>
+              <h2 class="section-title">Lista de compras</h2>
+              <p class="section-sub"><span id="compras-count">0</span> items · Destinado: <span id="compras-total-destinado">$0</span></p>
+            </div>
+            <button class="btn-primary" id="btn-nueva-compra">+ Nueva</button>
           </div>
-          <button class="btn-primary" id="btn-nuevo-prestamo">+ Nuevo</button>
-        </div>
-        <div class="prestamos-resumen">
-          <div class="resumen-item deuda"><span class="resumen-label">Deuda activa</span><span id="prest-total-deuda" class="resumen-valor">$0</span></div>
-          <div class="resumen-item pagado"><span class="resumen-label">Total pagado</span><span id="prest-total-pagado" class="resumen-valor">$0</span></div>
-          <div class="resumen-item pendiente"><span class="resumen-label">Por pagar</span><span id="prest-total-pendiente" class="resumen-valor">$0</span></div>
-        </div>
-        <div id="prestamos-grid" class="prestamos-grid"><div class="loading-state">Cargando…</div></div>
-        <!-- Modal préstamo -->
-        <div id="modal-prestamo" class="modal hidden">
-          <div class="modal-card">
-            <h3 class="modal-title">Nuevo préstamo</h3>
-            <p class="modal-subtitle">Se creará el concepto <strong>"Prestamo [nombre]"</strong> para registrar pagos.</p>
-            <div class="form-row">
-              <div class="form-group">
-                <label>Nombre</label>
-                <input id="prest-nombre" type="text" placeholder="Banco, Carro…" class="input"/>
-              </div>
-              <div class="form-group">
-                <label>Monto total</label>
-                <input id="prest-monto" type="number" inputmode="decimal" placeholder="0" class="input"/>
-              </div>
+          <div class="compras-sugerencias-wrap" id="compras-sugerencias-wrap" style="display:none">
+            <div class="card-section-header">
+              <span class="card-section-title">💡 Puedes comprar con tu excedente</span>
+              <span id="compras-sugerencias-sub" class="card-section-sub"></span>
             </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label>Cuotas <span class="label-opcional">(opcional)</span></label>
-                <input id="prest-cuotas" type="number" inputmode="numeric" placeholder="Ej: 24" class="input"/>
-              </div>
-              <div class="form-group">
-                <label>Fecha inicio</label>
-                <input id="prest-fecha" type="date" class="input"/>
-              </div>
-            </div>
-            <div class="form-group">
-              <label>Descripción <span class="label-opcional">(opcional)</span></label>
-              <textarea id="prest-descripcion" rows="2" placeholder="Banco, tasa, referencia…"
-                class="input" style="resize:none;min-height:56px;font-size:15px"></textarea>
-            </div>
-            <div class="modal-actions">
-              <button class="btn-secondary" id="btn-cancelar-prestamo">Cancelar</button>
-              <button class="btn-primary" id="btn-guardar-prestamo">Crear préstamo</button>
-            </div>
+            <div id="compras-sugerencias-list"></div>
           </div>
-        </div>
-        <!-- Modal pago rápido -->
-        <div id="modal-pago-rapido" class="modal hidden">
-          <div class="modal-card">
-            <h3 class="modal-title">Registrar pago</h3>
-            <div class="pago-concepto-info">
-              <div class="pago-concepto-label">Se registrará como</div>
-              <div class="pago-concepto-val" id="pago-concepto-display">—</div>
-              <div class="pago-pendiente-info">Pendiente: <strong id="pago-pendiente">$0</strong></div>
-            </div>
-            <div class="form-row">
-              <div class="form-group"><label>Fecha</label><input id="pago-fecha" type="date" class="input"/></div>
-              <div class="form-group"><label>Monto</label><input id="pago-monto" type="number" inputmode="decimal" placeholder="0" class="input"/></div>
-            </div>
-            <div class="form-group">
-              <label>Caja</label>
-              <select id="pago-caja" class="input"><option value="">Selecciona una caja</option></select>
-            </div>
-            <div class="form-group">
-              <label>Descripción <span class="label-opcional">(opcional)</span></label>
-              <input id="pago-desc" type="text" placeholder="Cuota 3, referencia…" class="input"/>
-            </div>
-            <div class="modal-actions">
-              <button class="btn-secondary" id="btn-cancelar-pago">Cancelar</button>
-              <button class="btn-primary" id="btn-guardar-pago">Registrar pago</button>
-            </div>
+          <div class="filtros-bar">
+            <select class="input-sm" id="filtro-compras-urgencia">
+              <option value="">Todas las urgencias</option>
+              <option value="Alta">🔴 Alta</option>
+              <option value="Media">🟡 Media</option>
+              <option value="Baja">🟢 Baja</option>
+            </select>
+            <select class="input-sm" id="filtro-compras-categoria">
+              <option value="">Todas las categorías</option>
+              <option value="Hogar">Hogar</option>
+              <option value="Tecnología">Tecnología</option>
+              <option value="Ropa">Ropa</option>
+              <option value="Salud">Salud</option>
+              <option value="Otros">Otros</option>
+            </select>
           </div>
+          <div id="compras-list"></div>
+        </div>
+
+        <!-- Panel Préstamos -->
+        <div id="planes-panel-prestamos" class="planes-panel hidden">
+          <div class="section-header">
+            <div>
+              <h2 class="section-title">Préstamos</h2>
+              <p class="section-sub">Seguimiento de deudas y pagos</p>
+            </div>
+            <button class="btn-primary" id="btn-nuevo-prestamo">+ Nuevo</button>
+          </div>
+          <div class="prestamos-resumen">
+            <div class="resumen-item deuda"><span class="resumen-label">Deuda activa</span><span id="prest-total-deuda" class="resumen-valor">$0</span></div>
+            <div class="resumen-item pagado"><span class="resumen-label">Total pagado</span><span id="prest-total-pagado" class="resumen-valor">$0</span></div>
+            <div class="resumen-item pendiente"><span class="resumen-label">Por pagar</span><span id="prest-total-pendiente" class="resumen-valor">$0</span></div>
+          </div>
+          <div id="prestamos-grid" class="prestamos-grid"><div class="loading-state">Cargando…</div></div>
         </div>
       </section>
 
@@ -682,6 +623,71 @@
         <div id="modal-agregar-mes-opciones" style="display:flex;flex-direction:column;gap:8px;margin-top:4px"></div>
         <div class="modal-actions">
           <button class="btn-secondary" id="btn-cancelar-agregar-mes">Cancelar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal préstamo -->
+    <div id="modal-prestamo" class="modal hidden">
+      <div class="modal-card">
+        <h3 class="modal-title">Nuevo préstamo</h3>
+        <p class="modal-subtitle">Se creará el concepto <strong>"Prestamo [nombre]"</strong> para registrar pagos.</p>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Nombre</label>
+            <input id="prest-nombre" type="text" placeholder="Banco, Carro…" class="input"/>
+          </div>
+          <div class="form-group">
+            <label>Monto total</label>
+            <input id="prest-monto" type="number" inputmode="decimal" placeholder="0" class="input"/>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Cuotas <span class="label-opcional">(opcional)</span></label>
+            <input id="prest-cuotas" type="number" inputmode="numeric" placeholder="Ej: 24" class="input"/>
+          </div>
+          <div class="form-group">
+            <label>Fecha inicio</label>
+            <input id="prest-fecha" type="date" class="input"/>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Descripción <span class="label-opcional">(opcional)</span></label>
+          <textarea id="prest-descripcion" rows="2" placeholder="Banco, tasa, referencia…"
+            class="input" style="resize:none;min-height:56px;font-size:15px"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-secondary" id="btn-cancelar-prestamo">Cancelar</button>
+          <button class="btn-primary" id="btn-guardar-prestamo">Crear préstamo</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal pago rápido -->
+    <div id="modal-pago-rapido" class="modal hidden">
+      <div class="modal-card">
+        <h3 class="modal-title">Registrar pago</h3>
+        <div class="pago-concepto-info">
+          <div class="pago-concepto-label">Se registrará como</div>
+          <div class="pago-concepto-val" id="pago-concepto-display">—</div>
+          <div class="pago-pendiente-info">Pendiente: <strong id="pago-pendiente">$0</strong></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Fecha</label><input id="pago-fecha" type="date" class="input"/></div>
+          <div class="form-group"><label>Monto</label><input id="pago-monto" type="number" inputmode="decimal" placeholder="0" class="input"/></div>
+        </div>
+        <div class="form-group">
+          <label>Caja</label>
+          <select id="pago-caja" class="input"><option value="">Selecciona una caja</option></select>
+        </div>
+        <div class="form-group">
+          <label>Descripción <span class="label-opcional">(opcional)</span></label>
+          <input id="pago-desc" type="text" placeholder="Cuota 3, referencia…" class="input"/>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-secondary" id="btn-cancelar-pago">Cancelar</button>
+          <button class="btn-primary" id="btn-guardar-pago">Registrar pago</button>
         </div>
       </div>
     </div>
