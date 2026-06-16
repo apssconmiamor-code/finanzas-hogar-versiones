@@ -1032,6 +1032,58 @@ function totalIngresosMes(mes) {
   return Object.values(fuentes).reduce((s, v) => s + (parseFloat(v) || 0), 0);
 }
 
+// ---- GASTOS POR MES (localStorage) ----
+// Estructura: { "2026-06": { "Alquiler": 1500000, "Netflix": 55000, ... } }
+function getGastosMes(mes) {
+  try {
+    const raw = localStorage.getItem("gastos_por_mes");
+    const data = raw ? JSON.parse(raw) : {};
+    return data[mes] || null; // null = usar presupuesto global
+  } catch { return null; }
+}
+
+function setGastosMes(mes, gastos) {
+  try {
+    const raw = localStorage.getItem("gastos_por_mes");
+    const data = raw ? JSON.parse(raw) : {};
+    data[mes] = gastos;
+    localStorage.setItem("gastos_por_mes", JSON.stringify(data));
+  } catch {}
+}
+
+function totalGastosMes(mes) {
+  const gastos = getGastosMes(mes);
+  if (gastos) return Object.values(gastos).reduce((s, v) => s + (parseFloat(v) || 0), 0);
+  return presupuesto.filter(p => p.montoEstimado > 0).reduce((s, p) => s + p.montoEstimado, 0);
+}
+
+function getMesAnterior(mes) {
+  const [y, m] = mes.split("-").map(Number);
+  const prev = new Date(y, m - 2, 1);
+  return prev.toISOString().slice(0, 7);
+}
+
+// Devuelve gastos para el editor: propia config del mes, luego mes anterior, luego global
+function getGastosMesParaEditor(mes) {
+  const propio = getGastosMes(mes);
+  if (propio) return propio;
+  const anterior = getGastosMes(getMesAnterior(mes));
+  if (anterior) return anterior;
+  // Fallback: presupuesto global
+  const result = {};
+  presupuesto.filter(p => p.montoEstimado > 0).forEach(p => { result[p.concepto] = p.montoEstimado; });
+  return result;
+}
+
+// Devuelve ingresos para el editor: propio mes, luego mes anterior
+function getIngresosMesParaEditor(mes) {
+  const propio = getIngresosMes(mes);
+  if (Object.keys(propio).length > 0) return propio;
+  const anterior = getIngresosMes(getMesAnterior(mes));
+  if (Object.keys(anterior).length > 0) return anterior;
+  return {};
+}
+
 // ---- MESES DINÁMICOS DE PROYECCIÓN ----
 let mesesProyeccion = null;
 
@@ -1058,17 +1110,76 @@ function saveMesesProyeccion() {
   try { localStorage.setItem("proy_meses_list", JSON.stringify(mesesProyeccion)); } catch {}
 }
 
-function agregarMesProyeccion() {
+function getMesesFaltantes() {
   const meses = getMesesProyeccion();
+  if (meses.length === 0) return [];
+  const hoy  = new Date();
+  const hoyStr = hoy.toISOString().slice(0, 7);
   const ultimo = meses[meses.length - 1];
-  const [y, m] = ultimo.split("-").map(Number);
-  const next = new Date(y, m, 1); // m es 1-based, Date lo toma como siguiente mes (0-based)
-  const nextStr = next.toISOString().slice(0, 7);
-  if (!meses.includes(nextStr)) {
-    mesesProyeccion = [...meses, nextStr];
-    saveMesesProyeccion();
+  const faltantes = [];
+  let cy = hoy.getFullYear(), cm = hoy.getMonth() + 1;
+  const [ly, lm] = ultimo.split("-").map(Number);
+  while (cy < ly || (cy === ly && cm < lm)) {
+    const mesStr = `${cy}-${String(cm).padStart(2, "0")}`;
+    if (!meses.includes(mesStr)) faltantes.push(mesStr);
+    cm++; if (cm > 12) { cm = 1; cy++; }
   }
-  render4MesesResumen();
+  return faltantes;
+}
+
+function agregarMesProyeccion() {
+  const meses    = getMesesProyeccion();
+  const ultimo   = meses[meses.length - 1];
+  const [y, m]   = ultimo.split("-").map(Number);
+  const nextStr  = new Date(y, m, 1).toISOString().slice(0, 7);
+  const faltantes = getMesesFaltantes();
+
+  if (faltantes.length === 0) {
+    // Sin huecos: agregar directamente el siguiente
+    if (!meses.includes(nextStr)) {
+      mesesProyeccion = [...meses, nextStr];
+      saveMesesProyeccion();
+    }
+    render4MesesResumen();
+    return;
+  }
+
+  // Hay huecos: mostrar modal de selección
+  const modal    = document.getElementById("modal-agregar-mes");
+  const opciones = document.getElementById("modal-agregar-mes-opciones");
+  if (!modal || !opciones) return;
+
+  const labelMes = (str) => new Date(str + "-15").toLocaleDateString("es-CO", { month: "long", year: "numeric" });
+
+  opciones.innerHTML = `
+    <p style="font-size:13px;color:var(--text-3);margin-bottom:4px">
+      Hay ${faltantes.length} mes${faltantes.length > 1 ? "es" : ""} sin cubrir antes de ${labelMes(ultimo)}:
+    </p>
+    ${faltantes.map(f => `
+      <button class="btn-secondary" style="justify-content:flex-start;gap:8px" data-mes-add="${f}">
+        📅 Agregar <strong>${labelMes(f)}</strong>
+      </button>`).join("")}
+    <div style="height:1px;background:var(--border);margin:4px 0"></div>
+    <button class="btn-primary" data-mes-add="${nextStr}">
+      ➡️ Continuar con ${labelMes(nextStr)}
+    </button>`;
+
+  modal.classList.remove("hidden");
+
+  opciones.querySelectorAll("[data-mes-add]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const mesAdd = btn.dataset.mesAdd;
+      if (!meses.includes(mesAdd)) {
+        mesesProyeccion = [...meses, mesAdd].sort();
+        saveMesesProyeccion();
+      }
+      modal.classList.add("hidden");
+      render4MesesResumen();
+    });
+  });
+
+  document.getElementById("btn-cancelar-agregar-mes").onclick = () => modal.classList.add("hidden");
+  modal.addEventListener("click", (e) => { if (e.target === modal) modal.classList.add("hidden"); }, { once: true });
 }
 
 function eliminarMesProyeccion(mes) {
@@ -1095,12 +1206,11 @@ function renderProyeccion() {
   const mes = proyMesActivo;
   document.getElementById("proyeccion-mes").value = mes;
   const movsDelMes = movimientos.filter(m => m.fecha.startsWith(mes));
-  renderIngresosMesPanel(mes);
   renderTablaComparacion(movsDelMes);
   render4MesesResumen();
 }
 
-// ---- PANEL DE INGRESOS POR MES ----
+// ---- PANEL DE INGRESOS POR MES (obsoleto, conservado por compatibilidad) ----
 function renderIngresosMesPanel(mes) {
   let panel = document.getElementById("proy-ingresos-mes-panel");
   if (!panel) {
@@ -1171,13 +1281,11 @@ function render4MesesResumen() {
   if (!wrap || !grid) return;
 
   const meses = getMesesProyeccion();
-  const gastosEstimados = presupuesto
-    .filter(p => p.montoEstimado > 0)
-    .reduce((s, p) => s + p.montoEstimado, 0);
 
   grid.innerHTML = `<div class="proy-4m-grid">` + meses.map(mes => {
     const label = new Date(mes + "-15").toLocaleDateString("es-CO", { month: "short", year: "2-digit" });
     const ingEst = totalIngresosMes(mes) || presupuesto.filter(p => p.ingresoEstimado > 0).reduce((s, p) => s + p.ingresoEstimado, 0);
+    const gastosEstimados = totalGastosMes(mes);
     const movsM  = movimientos.filter(m => m.fecha.startsWith(mes));
     const gastReal = movsM.filter(m => m.categoria !== "Ingreso" && m.categoria !== "Transferencia").reduce((s, m) => s + Math.abs(m.monto), 0);
     const ingReal  = movsM.filter(m => m.categoria === "Ingreso").reduce((s, m) => s + m.monto, 0);
@@ -1250,30 +1358,65 @@ function abrirConfigMes(mes) {
   if (!modal) return;
 
   const mesLabel = new Date(mes + "-15").toLocaleDateString("es-CO", { month: "long", year: "numeric" });
+  const mesPrevLabel = new Date(getMesAnterior(mes) + "-15").toLocaleDateString("es-CO", { month: "long" });
   titulo.textContent = `Proyección · ${mesLabel}`;
 
-  const fuentes = getIngresosMes(mes);
-  const FUENTES = ["SURA", "MEDFAN", "TATEQUIETO", "OTRO"];
+  const fuentes  = getIngresosMesParaEditor(mes);
+  const gastosMes = getGastosMesParaEditor(mes);
+  const FUENTES  = ["SURA", "MEDFAN", "TATEQUIETO", "OTRO"];
+  const todasCat = [
+    ...GASTOS_FIJOS.map(c => ({ categoria: "Gasto fijo", concepto: c })),
+    ...GASTOS_VARIABLES.map(c => ({ categoria: "Gasto variable", concepto: c })),
+  ];
+
+  const hayDatosMesAnterior = Object.keys(getGastosMes(getMesAnterior(mes)) || {}).length > 0
+    || Object.keys(getIngresosMes(getMesAnterior(mes))).length > 0;
+  const esValorReferencial = !getGastosMes(mes) && !Object.keys(getIngresosMes(mes)).length;
 
   body.innerHTML = `
+    ${esValorReferencial && hayDatosMesAnterior ? `
+      <div style="background:var(--blue-soft);border-radius:10px;padding:9px 13px;font-size:12px;color:var(--blue);margin-bottom:4px">
+        📋 Valores cargados desde ${mesPrevLabel} como referencia
+      </div>` : ""}
     <div class="pres-seccion-title">💰 Ingresos estimados</div>
     ${FUENTES.map(f => `
       <div class="pres-fila">
-        <span class="pres-concepto">${f}</span>
+        <span class="pres-concepto">💰 ${f}</span>
         <input class="input pres-input" type="number" inputmode="decimal" placeholder="0"
-          data-fuente="${f}" value="${fuentes[f] || ""}"/>
-      </div>`).join("")}`;
+          data-tipo="ingreso" data-fuente="${f}" value="${fuentes[f] || ""}"/>
+      </div>`).join("")}
+
+    <div class="pres-seccion-title" style="margin-top:16px">📌 Gastos fijos</div>
+    ${todasCat.filter(c => c.categoria === "Gasto fijo").map(c => `
+      <div class="pres-fila">
+        <span class="pres-concepto">${ICONOS[c.concepto] || "📌"} ${c.concepto}</span>
+        <input class="input pres-input" type="number" inputmode="decimal" placeholder="0"
+          data-tipo="gasto" data-concepto="${c.concepto}" value="${gastosMes[c.concepto] || ""}"/>
+      </div>`).join("")}
+
+    <div class="pres-seccion-title" style="margin-top:16px">🔀 Gastos variables</div>
+    ${todasCat.filter(c => c.categoria === "Gasto variable").map(c => `
+      <div class="pres-fila">
+        <span class="pres-concepto">${ICONOS[c.concepto] || "🔀"} ${c.concepto}</span>
+        <input class="input pres-input" type="number" inputmode="decimal" placeholder="0"
+          data-tipo="gasto" data-concepto="${c.concepto}" value="${gastosMes[c.concepto] || ""}"/>
+      </div>`).join("")}
+  `;
 
   modal.classList.remove("hidden");
 
   document.getElementById("btn-guardar-config-mes").onclick = () => {
-    const inputs = body.querySelectorAll(".pres-input[data-fuente]");
-    const nuevas = {};
-    inputs.forEach(inp => {
+    const nuevosIngresos = {};
+    const nuevosGastos   = {};
+    body.querySelectorAll(".pres-input").forEach(inp => {
       const v = parseFloat(inp.value);
-      if (v > 0) nuevas[inp.dataset.fuente] = v;
+      if (v > 0) {
+        if (inp.dataset.tipo === "ingreso") nuevosIngresos[inp.dataset.fuente] = v;
+        else nuevosGastos[inp.dataset.concepto] = v;
+      }
     });
-    setIngresosMes(mes, nuevas);
+    setIngresosMes(mes, nuevosIngresos);
+    setGastosMes(mes, Object.keys(nuevosGastos).length ? nuevosGastos : null);
     modal.classList.add("hidden");
     renderProyeccion();
     SyncManager.mostrarToast("✅ Proyección de " + new Date(mes + "-15").toLocaleDateString("es-CO", { month: "long" }) + " guardada");
@@ -1296,14 +1439,26 @@ function renderTablaComparacion(movsDelMes) {
       realesPorConcepto[m.concepto] = (realesPorConcepto[m.concepto] || 0) + Math.abs(m.monto);
     });
 
-  const filas = presupuesto
-    .filter(p => p.montoEstimado > 0)
-    .map(p => ({
-      categoria: p.categoria,
-      concepto:  p.concepto,
-      estimado:  p.montoEstimado,
-      real:      realesPorConcepto[p.concepto] || 0,
-    }));
+  // Usar gastos configurados para este mes específico, o caer al presupuesto global
+  const gastosMes = getGastosMes(proyMesActivo);
+  const todasCat  = [
+    ...GASTOS_FIJOS.map(c => ({ categoria: "Gasto fijo", concepto: c })),
+    ...GASTOS_VARIABLES.map(c => ({ categoria: "Gasto variable", concepto: c })),
+  ];
+
+  let filas;
+  if (gastosMes) {
+    filas = Object.entries(gastosMes)
+      .filter(([, v]) => v > 0)
+      .map(([concepto, estimado]) => {
+        const cat = todasCat.find(c => c.concepto === concepto);
+        return { categoria: cat ? cat.categoria : "Gasto variable", concepto, estimado, real: realesPorConcepto[concepto] || 0 };
+      });
+  } else {
+    filas = presupuesto
+      .filter(p => p.montoEstimado > 0)
+      .map(p => ({ categoria: p.categoria, concepto: p.concepto, estimado: p.montoEstimado, real: realesPorConcepto[p.concepto] || 0 }));
+  }
 
   Object.entries(realesPorConcepto).forEach(([concepto, real]) => {
     if (!filas.find(f => f.concepto === concepto)) {
@@ -1684,17 +1839,12 @@ function renderCronologia(datos) {
 // ---- SETUP LISTENERS PROYECCIÓN ----
 
 function setupProyeccionListeners() {
-  document.getElementById("btn-editar-presupuesto")
-    .addEventListener("click", abrirModalPresupuesto);
   document.getElementById("btn-cancelar-presupuesto")
-    .addEventListener("click", cerrarModalPresupuesto);
+    ?.addEventListener("click", cerrarModalPresupuesto);
   document.getElementById("btn-guardar-presupuesto")
-    .addEventListener("click", guardarPresupuesto);
-  // proyeccion-mes is now controlled by tab buttons (renderMesesTabs)
+    ?.addEventListener("click", guardarPresupuesto);
 
-  // proy-toggles removed (donuts removed)
-
-  document.getElementById("modal-presupuesto").addEventListener("click", (e) => {
+  document.getElementById("modal-presupuesto")?.addEventListener("click", (e) => {
     if (e.target === document.getElementById("modal-presupuesto")) cerrarModalPresupuesto();
   });
 }

@@ -311,10 +311,7 @@
             <h2 class="section-title">Proyección</h2>
             <p class="section-sub">4 meses · presupuesto vs realidad</p>
           </div>
-          <button class="btn-outline" id="btn-editar-presupuesto">✏️ Presupuesto</button>
         </div>
-        <!-- Panel ingresos por mes (inyectado por JS) -->
-        <div id="proy-ingresos-mes-panel"></div>
         <!-- Grid meses dinámico -->
         <div class="card-section" id="proy-4meses-wrap">
           <div class="card-section-header">
@@ -673,6 +670,18 @@
         <div class="modal-actions">
           <button class="btn-secondary" id="btn-cancelar-compra">Cancelar</button>
           <button class="btn-primary" id="btn-guardar-compra">Agregar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal agregar mes (con detección de huecos) -->
+    <div id="modal-agregar-mes" class="modal hidden">
+      <div class="modal-card">
+        <h3 class="modal-title">¿Qué mes agregar?</h3>
+        <p class="modal-subtitle" id="modal-agregar-mes-sub">Hay meses sin cubrir en tu proyección.</p>
+        <div id="modal-agregar-mes-opciones" style="display:flex;flex-direction:column;gap:8px;margin-top:4px"></div>
+        <div class="modal-actions">
+          <button class="btn-secondary" id="btn-cancelar-agregar-mes">Cancelar</button>
         </div>
       </div>
     </div>
