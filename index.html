@@ -313,30 +313,13 @@
           </div>
           <button class="btn-outline" id="btn-editar-presupuesto">✏️ Presupuesto</button>
         </div>
-        <div class="proy-meses-tabs" id="proy-meses-tabs"></div>
-        <div class="proy-kpi-row">
-          <div class="proy-kpi-card">
-            <div class="proy-kpi-label">Ingresos est.</div>
-            <div class="proy-kpi-val" id="proy-ingreso-estimado">$0</div>
-            <div class="proy-kpi-sub">Real: <strong id="proy-ingreso-real">$0</strong></div>
-          </div>
-          <div class="proy-kpi-card">
-            <div class="proy-kpi-label">Gastos est.</div>
-            <div class="proy-kpi-val" id="proy-gasto-estimado">$0</div>
-            <div class="proy-kpi-sub">Real: <strong id="proy-gasto-real">$0</strong></div>
-          </div>
-          <div class="proy-kpi-card proy-kpi-accent">
-            <div class="proy-kpi-label">Excedente</div>
-            <div class="proy-kpi-val" id="proy-excedente-est">$0</div>
-            <div class="proy-kpi-sub">Real: <strong id="proy-excedente-real">$0</strong></div>
-          </div>
-        </div>
         <!-- Panel ingresos por mes (inyectado por JS) -->
         <div id="proy-ingresos-mes-panel"></div>
-        <!-- Grid 4 meses -->
-        <div class="card-section" id="proy-4meses-wrap" style="display:none">
+        <!-- Grid meses dinámico -->
+        <div class="card-section" id="proy-4meses-wrap">
           <div class="card-section-header">
-            <span class="card-section-title">📅 Vista 4 meses</span>
+            <span class="card-section-title">📅 Meses en proyección</span>
+            <button class="btn-agregar-mes" id="btn-agregar-mes" title="Agregar mes">+ mes</button>
           </div>
           <div id="proy-4meses-grid"></div>
         </div>
@@ -690,6 +673,19 @@
         <div class="modal-actions">
           <button class="btn-secondary" id="btn-cancelar-compra">Cancelar</button>
           <button class="btn-primary" id="btn-guardar-compra">Agregar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal configurar mes proyección -->
+    <div id="modal-config-mes" class="modal hidden">
+      <div class="modal-card">
+        <h3 class="modal-title" id="modal-config-mes-titulo">Configurar mes</h3>
+        <p class="modal-subtitle">Ingresos estimados para este mes</p>
+        <div id="modal-config-mes-body" class="pres-form-body"></div>
+        <div class="modal-actions">
+          <button class="btn-secondary" id="btn-cancelar-config-mes">Cancelar</button>
+          <button class="btn-primary" id="btn-guardar-config-mes">Guardar</button>
         </div>
       </div>
     </div>

@@ -256,14 +256,23 @@ document.getElementById("btn-nuevo-movimiento").addEventListener("click", () => 
   });
   document.getElementById("btn-guardar-mov").addEventListener("click", guardarMovimiento);
 
-  // Live validation: cap monto to caja balance on input
+  // Live validation: filtrar cajas con fondos suficientes al escribir el monto
   document.getElementById("mov-monto")?.addEventListener("input", () => {
-    const cajaId  = document.getElementById("mov-caja").value;
-    const catVal  = document.getElementById("mov-categoria").value;
-    if (!cajaId || catVal === "Ingreso" || catVal === "Transferencia") return;
-    const monto   = parseFloat(document.getElementById("mov-monto").value);
-    const saldo   = Math.max(0, calcularSaldoCaja(cajaId));
-    const warn    = document.getElementById("mov-fondos-warn");
+    const catVal = document.getElementById("mov-categoria").value;
+    const monto  = parseFloat(document.getElementById("mov-monto").value) || 0;
+    const warn   = document.getElementById("mov-fondos-warn");
+
+    if (catVal !== "Ingreso" && catVal !== "Transferencia") {
+      // Repoblar select mostrando solo cajas con fondos suficientes
+      poblarSelectCajas("mov-caja", monto > 0 ? monto : 0);
+    }
+
+    const cajaId = document.getElementById("mov-caja").value;
+    if (!cajaId || catVal === "Ingreso" || catVal === "Transferencia") {
+      if (warn) warn.classList.add("hidden");
+      return;
+    }
+    const saldo = Math.max(0, calcularSaldoCaja(cajaId));
     if (warn) {
       if (monto > saldo) {
         warn.textContent = `⚠️ Fondos insuficientes · Disponible: ${formatMonto(saldo)}`;
@@ -304,6 +313,14 @@ document.getElementById("btn-nuevo-movimiento").addEventListener("click", () => 
     btn.classList.add("active");
     document.getElementById("mov-categoria").value = btn.dataset.value;
     actualizarCampoConcepto();
+    // Al cambiar categoría, resetear el filtro de cajas según monto actual
+    const cat   = btn.dataset.value;
+    const monto = parseFloat(document.getElementById("mov-monto").value) || 0;
+    if (cat === "Ingreso" || cat === "Transferencia") {
+      poblarSelectCajas("mov-caja");
+    } else {
+      poblarSelectCajas("mov-caja", monto > 0 ? monto : 0);
+    }
   });
 
   document.getElementById("filtro-mes").addEventListener("change", renderMovimientos);
@@ -908,7 +925,7 @@ async function borrarMovimiento(id) {
 
 // ---- HELPERS ----
 
-function poblarSelectCajas(selectId) {
+function poblarSelectCajas(selectId, montoMinimo = 0) {
   const sel = document.getElementById(selectId);
   if (!sel) return;
 
@@ -919,8 +936,18 @@ function poblarSelectCajas(selectId) {
     } catch {}
   }
 
+  const valorPrevio = sel.value;
+  let cajasDisp = cajas;
+  if (montoMinimo > 0) {
+    cajasDisp = cajas.filter(c => calcularSaldoCaja(c.nombre) >= montoMinimo);
+  }
+
   sel.innerHTML = `<option value="">Selecciona una caja</option>` +
-    cajas.map(c => `<option value="${c.nombre}">${c.nombre} (${c.moneda})</option>`).join("");
+    cajasDisp.map(c => `<option value="${c.nombre}">${c.nombre} (${c.moneda})</option>`).join("");
+
+  if (valorPrevio && cajasDisp.find(c => c.nombre === valorPrevio)) {
+    sel.value = valorPrevio;
+  }
 }
 
 function poblarFiltrosCajas() {
@@ -1005,84 +1032,71 @@ function totalIngresosMes(mes) {
   return Object.values(fuentes).reduce((s, v) => s + (parseFloat(v) || 0), 0);
 }
 
-// ---- OBTENER LOS 4 MESES A MOSTRAR ----
-function obtener4Meses() {
-  const hoy = new Date();
-  const meses = [];
-  for (let i = 0; i < 4; i++) {
-    const d = new Date(hoy.getFullYear(), hoy.getMonth() + i, 1);
-    meses.push(d.toISOString().slice(0, 7));
+// ---- MESES DINÁMICOS DE PROYECCIÓN ----
+let mesesProyeccion = null;
+
+function getMesesProyeccion() {
+  if (!mesesProyeccion) {
+    try {
+      const raw = localStorage.getItem("proy_meses_list");
+      mesesProyeccion = raw ? JSON.parse(raw) : null;
+    } catch {}
   }
-  return meses;
+  if (!mesesProyeccion || mesesProyeccion.length === 0) {
+    const hoy = new Date();
+    mesesProyeccion = [];
+    for (let i = 0; i < 4; i++) {
+      const d = new Date(hoy.getFullYear(), hoy.getMonth() + i, 1);
+      mesesProyeccion.push(d.toISOString().slice(0, 7));
+    }
+    saveMesesProyeccion();
+  }
+  return mesesProyeccion;
+}
+
+function saveMesesProyeccion() {
+  try { localStorage.setItem("proy_meses_list", JSON.stringify(mesesProyeccion)); } catch {}
+}
+
+function agregarMesProyeccion() {
+  const meses = getMesesProyeccion();
+  const ultimo = meses[meses.length - 1];
+  const [y, m] = ultimo.split("-").map(Number);
+  const next = new Date(y, m, 1); // m es 1-based, Date lo toma como siguiente mes (0-based)
+  const nextStr = next.toISOString().slice(0, 7);
+  if (!meses.includes(nextStr)) {
+    mesesProyeccion = [...meses, nextStr];
+    saveMesesProyeccion();
+  }
+  render4MesesResumen();
+}
+
+function eliminarMesProyeccion(mes) {
+  const meses = getMesesProyeccion();
+  if (meses.length <= 1) return;
+  mesesProyeccion = meses.filter(m => m !== mes);
+  if (proyMesActivo === mes) proyMesActivo = mesesProyeccion[0];
+  saveMesesProyeccion();
+  render4MesesResumen();
+  renderTablaComparacion(movimientos.filter(m => m.fecha.startsWith(proyMesActivo)));
+  renderIngresosMesPanel(proyMesActivo);
+}
+
+// compat: usado en otras secciones (resumen, metas)
+function obtener4Meses() {
+  return getMesesProyeccion();
 }
 
 // mes activo en proyección
 let proyMesActivo = new Date().toISOString().slice(0, 7);
 
-// ---- RENDER TABS DE MESES ----
-function renderMesesTabs() {
-  const container = document.getElementById("proy-meses-tabs");
-  if (!container) return;
-  const meses = obtener4Meses();
-  container.innerHTML = meses.map(m => {
-    const label = new Date(m + "-15").toLocaleDateString("es-CO", { month: "short", year: "2-digit" });
-    const active = m === proyMesActivo ? "active" : "";
-    return `<button class="proy-mes-tab ${active}" data-mes="${m}">${label.replace(". ", " '")}</button>`;
-  }).join("");
-  container.addEventListener("click", (e) => {
-    const btn = e.target.closest(".proy-mes-tab");
-    if (!btn) return;
-    proyMesActivo = btn.dataset.mes;
-    document.getElementById("proyeccion-mes").value = proyMesActivo;
-    container.querySelectorAll(".proy-mes-tab").forEach(b => b.classList.toggle("active", b.dataset.mes === proyMesActivo));
-    renderProyeccion();
-  });
-}
-
 // ---- RENDER PROYECCIÓN ----
 function renderProyeccion() {
-  renderMesesTabs();
   const mes = proyMesActivo;
   document.getElementById("proyeccion-mes").value = mes;
-
   const movsDelMes = movimientos.filter(m => m.fecha.startsWith(mes));
-
-  const ingresosReales = movsDelMes
-    .filter(m => m.categoria === "Ingreso")
-    .reduce((s, m) => s + m.monto, 0);
-
-  // Ingresos estimados: usa los configurados para este mes, o el presupuesto global
-  const ingMesConfig = totalIngresosMes(mes);
-  const ingresosEstimados = ingMesConfig > 0
-    ? ingMesConfig
-    : presupuesto.filter(p => p.ingresoEstimado > 0).reduce((s, p) => s + p.ingresoEstimado, 0);
-
-  const gastosReales = movsDelMes
-    .filter(m => m.categoria !== "Ingreso" && m.categoria !== "Transferencia")
-    .reduce((s, m) => s + Math.abs(m.monto), 0);
-
-  const gastosEstimados = presupuesto
-    .filter(p => p.montoEstimado > 0)
-    .reduce((s, p) => s + p.montoEstimado, 0);
-
-  const excedente     = ingresosEstimados - gastosEstimados;
-  const excedenteReal = ingresosReales - gastosReales;
-
-  document.getElementById("proy-ingreso-estimado").textContent  = formatMonto(ingresosEstimados);
-  document.getElementById("proy-ingreso-real").textContent      = formatMonto(ingresosReales);
-  document.getElementById("proy-gasto-estimado").textContent    = formatMonto(gastosEstimados);
-  document.getElementById("proy-gasto-real").textContent        = formatMonto(gastosReales);
-  document.getElementById("proy-excedente-est").textContent     = formatMonto(excedente);
-  document.getElementById("proy-excedente-real").textContent    = formatMonto(excedenteReal);
-
-  ["proy-excedente-est", "proy-excedente-real"].forEach((id, i) => {
-    const val = i === 0 ? excedente : excedenteReal;
-    document.getElementById(id).style.color = val >= 0 ? "var(--green)" : "var(--red)";
-  });
-
   renderIngresosMesPanel(mes);
   renderTablaComparacion(movsDelMes);
-  // donuts removed
   render4MesesResumen();
 }
 
@@ -1150,14 +1164,13 @@ function renderIngresosMesPanel(mes) {
   });
 }
 
-// ---- RESUMEN 4 MESES ----
+// ---- RESUMEN MESES DINÁMICO ----
 function render4MesesResumen() {
   const wrap = document.getElementById("proy-4meses-wrap");
   const grid = document.getElementById("proy-4meses-grid");
   if (!wrap || !grid) return;
-  wrap.style.display = "";
 
-  const meses = obtener4Meses();
+  const meses = getMesesProyeccion();
   const gastosEstimados = presupuesto
     .filter(p => p.montoEstimado > 0)
     .reduce((s, p) => s + p.montoEstimado, 0);
@@ -1165,38 +1178,109 @@ function render4MesesResumen() {
   grid.innerHTML = `<div class="proy-4m-grid">` + meses.map(mes => {
     const label = new Date(mes + "-15").toLocaleDateString("es-CO", { month: "short", year: "2-digit" });
     const ingEst = totalIngresosMes(mes) || presupuesto.filter(p => p.ingresoEstimado > 0).reduce((s, p) => s + p.ingresoEstimado, 0);
-    const movsM = movimientos.filter(m => m.fecha.startsWith(mes));
+    const movsM  = movimientos.filter(m => m.fecha.startsWith(mes));
     const gastReal = movsM.filter(m => m.categoria !== "Ingreso" && m.categoria !== "Transferencia").reduce((s, m) => s + Math.abs(m.monto), 0);
-    const ingReal = movsM.filter(m => m.categoria === "Ingreso").reduce((s, m) => s + m.monto, 0);
-    const excEst = ingEst - gastosEstimados;
+    const ingReal  = movsM.filter(m => m.categoria === "Ingreso").reduce((s, m) => s + m.monto, 0);
+    const excEst  = ingEst - gastosEstimados;
     const excReal = ingReal - gastReal;
     const isActivo = mes === proyMesActivo;
+    const puedeEliminar = meses.length > 1;
 
     return `<div class="proy-4m-card ${isActivo ? "proy-4m-active" : ""}" data-mes="${mes}">
+      ${puedeEliminar ? `<button class="proy-4m-remove" data-mes-rm="${mes}" title="Quitar mes">×</button>` : ""}
       <div class="proy-4m-mes">${label}</div>
       <div class="proy-4m-row"><span>Ingresos est.</span><strong>${formatMonto(ingEst)}</strong></div>
       <div class="proy-4m-row"><span>Gastos est.</span><strong>${formatMonto(gastosEstimados)}</strong></div>
-      <div class="proy-4m-row proy-4m-exc" style="color:${excEst>=0?"var(--green)":"var(--red)"}">
+      <div class="proy-4m-row" style="color:${excEst>=0?"var(--green)":"var(--red)"}">
         <span>Excedente</span><strong>${formatMonto(excEst)}</strong>
       </div>
       ${ingReal > 0 || gastReal > 0 ? `
       <div class="proy-4m-divider"></div>
-      <div class="proy-4m-row" style="font-size:11px;color:var(--text-light)"><span>Real ingresos</span><strong>${formatMonto(ingReal)}</strong></div>
-      <div class="proy-4m-row" style="font-size:11px;color:var(--text-light)"><span>Real gastos</span><strong>${formatMonto(gastReal)}</strong></div>
+      <div class="proy-4m-row" style="font-size:11px"><span>Real ingresos</span><strong>${formatMonto(ingReal)}</strong></div>
+      <div class="proy-4m-row" style="font-size:11px"><span>Real gastos</span><strong>${formatMonto(gastReal)}</strong></div>
       <div class="proy-4m-row" style="font-size:11px;color:${excReal>=0?"var(--green)":"var(--red)"}"><span>Real excedente</span><strong>${formatMonto(excReal)}</strong></div>
       ` : ""}
     </div>`;
   }).join("") + "</div>";
 
-  // Clic en tarjeta de mes
-  grid.querySelectorAll(".proy-4m-card").forEach(card => {
-    card.addEventListener("click", () => {
-      proyMesActivo = card.dataset.mes;
-      document.getElementById("proyeccion-mes").value = proyMesActivo;
-      renderProyeccion();
-      window.scrollTo({ top: 0, behavior: "smooth" });
+  // Botón agregar mes
+  const btnAgregar = document.getElementById("btn-agregar-mes");
+  if (btnAgregar) {
+    btnAgregar.onclick = agregarMesProyeccion;
+  }
+
+  // Eliminar mes (×)
+  grid.querySelectorAll(".proy-4m-remove").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      eliminarMesProyeccion(btn.dataset.mesRm);
     });
   });
+
+  // Variables para detectar doble clic
+  let clickTimer = null;
+
+  grid.querySelectorAll(".proy-4m-card").forEach(card => {
+    card.addEventListener("click", (e) => {
+      if (e.target.classList.contains("proy-4m-remove")) return;
+      if (clickTimer) {
+        // Doble clic: abrir configuración
+        clearTimeout(clickTimer);
+        clickTimer = null;
+        abrirConfigMes(card.dataset.mes);
+      } else {
+        clickTimer = setTimeout(() => {
+          clickTimer = null;
+          // Clic simple: seleccionar mes
+          proyMesActivo = card.dataset.mes;
+          document.getElementById("proyeccion-mes").value = proyMesActivo;
+          renderProyeccion();
+          document.querySelector(".card-section:has(#proy-tabla-body)")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 220);
+      }
+    });
+  });
+}
+
+// ---- CONFIG DE MES (doble clic) ----
+function abrirConfigMes(mes) {
+  const modal  = document.getElementById("modal-config-mes");
+  const titulo = document.getElementById("modal-config-mes-titulo");
+  const body   = document.getElementById("modal-config-mes-body");
+  if (!modal) return;
+
+  const mesLabel = new Date(mes + "-15").toLocaleDateString("es-CO", { month: "long", year: "numeric" });
+  titulo.textContent = `Proyección · ${mesLabel}`;
+
+  const fuentes = getIngresosMes(mes);
+  const FUENTES = ["SURA", "MEDFAN", "TATEQUIETO", "OTRO"];
+
+  body.innerHTML = `
+    <div class="pres-seccion-title">💰 Ingresos estimados</div>
+    ${FUENTES.map(f => `
+      <div class="pres-fila">
+        <span class="pres-concepto">${f}</span>
+        <input class="input pres-input" type="number" inputmode="decimal" placeholder="0"
+          data-fuente="${f}" value="${fuentes[f] || ""}"/>
+      </div>`).join("")}`;
+
+  modal.classList.remove("hidden");
+
+  document.getElementById("btn-guardar-config-mes").onclick = () => {
+    const inputs = body.querySelectorAll(".pres-input[data-fuente]");
+    const nuevas = {};
+    inputs.forEach(inp => {
+      const v = parseFloat(inp.value);
+      if (v > 0) nuevas[inp.dataset.fuente] = v;
+    });
+    setIngresosMes(mes, nuevas);
+    modal.classList.add("hidden");
+    renderProyeccion();
+    SyncManager.mostrarToast("✅ Proyección de " + new Date(mes + "-15").toLocaleDateString("es-CO", { month: "long" }) + " guardada");
+  };
+
+  document.getElementById("btn-cancelar-config-mes").onclick = () => modal.classList.add("hidden");
+  modal.addEventListener("click", (e) => { if (e.target === modal) modal.classList.add("hidden"); }, { once: true });
 }
 
 // ---- TABLA COMPARACIÓN ----

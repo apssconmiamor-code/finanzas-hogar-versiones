@@ -974,3 +974,24 @@ body {
 .filtro-chip.active {
   background: var(--blue); color: #fff; border-color: var(--blue);
 }
+
+/* ═══════════════ BOTÓN AGREGAR MES ═══════════════ */
+.btn-agregar-mes {
+  background: none; border: 1.5px dashed var(--border-mid);
+  border-radius: 8px; padding: 4px 12px;
+  font-size: 12px; font-weight: 600; color: var(--text-4);
+  cursor: pointer; font-family: var(--font);
+  transition: all 0.15s; letter-spacing: -0.1px;
+}
+.btn-agregar-mes:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-soft); }
+
+/* Tarjeta de mes activa en la grid */
+.proy-4m-card { cursor: pointer; user-select: none; }
+.proy-4m-card.proy-4m-active { border-color: var(--blue); background: var(--blue-soft); }
+.proy-4m-card .proy-4m-remove {
+  display: none; position: absolute; top: 6px; right: 6px;
+  background: none; border: none; cursor: pointer;
+  color: var(--text-4); font-size: 14px; line-height: 1; padding: 2px;
+}
+.proy-4m-card:hover .proy-4m-remove { display: block; }
+.proy-4m-card { position: relative; }
