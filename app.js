@@ -499,14 +499,15 @@ async function cargarTodo() {
     await cargarPrestamos();
     renderResumen();
 
-    // Metas: cargar desde Sheets y actualizar caché (fire-and-forget)
-    Sheets.getMetas().then(metasSheet => {
-      if (metasSheet.length > 0 || getMetas().length === 0) {
-        localStorage.setItem("metas_ahorro_v2", JSON.stringify(metasSheet));
-        const panel = document.getElementById("planes-panel-metas");
-        if (panel && !panel.classList.contains("hidden")) renderMetas();
-      }
-    }).catch(() => {});
+    // Metas: cargar desde Sheets y actualizar caché
+    try {
+      const metasSheet = await Sheets.getMetas();
+      localStorage.setItem("metas_ahorro_v2", JSON.stringify(metasSheet));
+      const panel = document.getElementById("planes-panel-metas");
+      if (panel && !panel.classList.contains("hidden")) renderMetas();
+    } catch (metasErr) {
+      console.warn("Error cargando metas:", metasErr);
+    }
 
   } catch (err) {    
     if (err.message === "TOKEN_EXPIRADO") return;
@@ -2437,6 +2438,15 @@ function generarSubmetasDesde(meta) {
 }
 
 async function cargarMetas() {
+  // Si no hay caché local, cargar desde Sheets antes de renderizar
+  if (getMetas().length === 0) {
+    try {
+      const metasSheet = await Sheets.getMetas();
+      localStorage.setItem("metas_ahorro_v2", JSON.stringify(metasSheet));
+    } catch (e) {
+      console.warn("Error cargando metas:", e);
+    }
+  }
   renderMetas();
 }
 
