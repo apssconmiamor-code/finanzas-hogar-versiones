@@ -704,6 +704,8 @@ body {
 .compra-acciones { display: flex; gap: 8px; }
 .btn-comprar { font-size: 13px; padding: 7px 14px; }
 
+#planes-panel-compras { margin-top: 28px; }
+
 /* ═══════════════ PRÉSTAMOS ═══════════════ */
 .prestamos-resumen { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 16px; }
 .prestamos-grid { display: flex; flex-direction: column; gap: 12px; }
