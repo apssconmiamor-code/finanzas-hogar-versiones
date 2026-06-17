@@ -33,14 +33,24 @@ const Sheets = {
   },
 
   _renovarToken() {
-    const user = localStorage.getItem("guser");
-    if (!user) { location.reload(); return; }
+    const raw = localStorage.getItem("guser");
+    if (!raw) {
+      document.getElementById("app")?.classList.add("hidden");
+      document.getElementById("login-screen")?.classList.remove("hidden");
+      return;
+    }
+    const user = JSON.parse(raw);
     const client = google.accounts.oauth2.initTokenClient({
       client_id: CONFIG.GOOGLE_CLIENT_ID,
       scope: "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email",
       prompt: "",
+      hint: user.email,
       callback: (response) => {
-        if (response.error) { location.reload(); return; }
+        if (response.error) {
+          if (typeof SyncManager !== "undefined")
+            SyncManager.mostrarToast("📴 Sin conexión con Google — mostrando datos guardados");
+          return;
+        }
         Sheets.setToken(response.access_token);
         localStorage.setItem("gtoken", response.access_token);
         cargarTodo();

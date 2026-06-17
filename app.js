@@ -105,14 +105,37 @@ window.onload = () => {
 
   const token = localStorage.getItem("gtoken");
   const user  = localStorage.getItem("guser");
-  if (token && user) {
-    Sheets.setToken(token);
+
+  if (user) {
+    // Siempre mostrar la app con datos del caché si el usuario está guardado
     currentUser = JSON.parse(user);
+    if (token) Sheets.setToken(token);
     mostrarApp();
+    // Refrescar el token en segundo plano sin mostrar ningún popup
+    _refrescarTokenSilencioso();
   }
 
   setupEventListeners();
 };
+
+// Intenta obtener un token nuevo sin interrumpir al usuario
+function _refrescarTokenSilencioso() {
+  if (!currentUser?.email) return;
+  try {
+    const client = google.accounts.oauth2.initTokenClient({
+      client_id: CONFIG.GOOGLE_CLIENT_ID,
+      scope: "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email",
+      prompt: "",
+      hint: currentUser.email,
+      callback: (response) => {
+        if (response.error) return; // falla silenciosamente, los datos del caché siguen visibles
+        Sheets.setToken(response.access_token);
+        localStorage.setItem("gtoken", response.access_token);
+      }
+    });
+    client.requestAccessToken();
+  } catch (e) { /* silencioso */ }
+}
 
 // ---- AUTH ----
 
