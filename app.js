@@ -2,6 +2,52 @@
 // APP PRINCIPAL
 // =============================================
 
+// Evalúa expresiones simples en campos de monto (ej: "4000+5000+1000" → 10000)
+function evaluarMonto(str) {
+  const clean = String(str || "").replace(/\s/g, "").replace(/,/g, ".");
+  if (!clean) return 0;
+  // Solo permitir dígitos y operadores básicos — sin eval directo
+  if (!/^[\d+\-*/().]+$/.test(clean)) return parseFloat(clean) || 0;
+  try {
+    // eslint-disable-next-line no-new-func
+    const result = new Function("return (" + clean + ")")();
+    if (typeof result === "number" && isFinite(result)) return Math.round(result * 100) / 100;
+  } catch (e) {}
+  return parseFloat(clean) || 0;
+}
+
+// Activa el cálculo en tiempo real en un input de monto
+function activarCalculoMonto(inputId, hintId) {
+  const input = document.getElementById(inputId);
+  const hint  = document.getElementById(hintId);
+  if (!input || !hint) return;
+
+  input.addEventListener("input", () => {
+    const val = input.value;
+    const tieneOp = /[+\-*/]/.test(val);
+    if (tieneOp && val.trim()) {
+      const result = evaluarMonto(val);
+      if (result > 0) {
+        hint.textContent = "= " + result.toLocaleString("es-CO");
+        hint.classList.remove("hidden");
+      } else {
+        hint.classList.add("hidden");
+      }
+    } else {
+      hint.classList.add("hidden");
+    }
+  });
+
+  input.addEventListener("blur", () => {
+    const val = input.value;
+    if (/[+\-*/]/.test(val)) {
+      const result = evaluarMonto(val);
+      if (result > 0) input.value = result;
+    }
+    hint.classList.add("hidden");
+  });
+}
+
 let currentUser = null;
 let cajas = [];
 let movimientos = [];
@@ -277,10 +323,14 @@ document.getElementById("btn-nuevo-movimiento").addEventListener("click", () => 
   });
   document.getElementById("btn-guardar-mov").addEventListener("click", guardarMovimiento);
 
+  // Cálculo de expresiones en campos de monto (ej: 4000+5000 → 9000)
+  activarCalculoMonto("mov-monto", "mov-monto-calc");
+  activarCalculoMonto("mov-monto-transferencia", "mov-monto-transf-calc");
+
   // Live validation: filtrar cajas con fondos suficientes al escribir el monto
   document.getElementById("mov-monto")?.addEventListener("input", () => {
     const catVal = document.getElementById("mov-categoria").value;
-    const monto  = parseFloat(document.getElementById("mov-monto").value) || 0;
+    const monto  = evaluarMonto(document.getElementById("mov-monto").value) || 0;
     const warn   = document.getElementById("mov-fondos-warn");
 
     if (catVal !== "Ingreso" && catVal !== "Transferencia") {
@@ -336,7 +386,7 @@ document.getElementById("btn-nuevo-movimiento").addEventListener("click", () => 
     actualizarCampoConcepto();
     // Al cambiar categoría, resetear el filtro de cajas según monto actual
     const cat   = btn.dataset.value;
-    const monto = parseFloat(document.getElementById("mov-monto").value) || 0;
+    const monto = evaluarMonto(document.getElementById("mov-monto").value) || 0;
     if (cat === "Ingreso" || cat === "Transferencia") {
       poblarSelectCajas("mov-caja");
     } else {
@@ -752,7 +802,7 @@ async function guardarMovimiento() {
     const descripcion = document.getElementById("mov-descripcion").value.trim();
     const concepto    = getConceptoActivo();
     const caja        = document.getElementById("mov-caja").value;
-    const monto       = parseFloat(document.getElementById("mov-monto").value);
+    const monto       = evaluarMonto(document.getElementById("mov-monto").value);
 
     if (!fecha || !categoria || !concepto || !caja || !monto) {
       alert("Completa todos los campos obligatorios");
@@ -803,7 +853,7 @@ btn.textContent = "Guardando..."; btn.disabled = true;
     if (categoria === "Transferencia") {
   const origen  = document.getElementById("mov-caja-origen").value;
   const destino = document.getElementById("mov-caja-destino").value;
-  const monto   = parseFloat(document.getElementById("mov-monto-transferencia").value);
+  const monto   = evaluarMonto(document.getElementById("mov-monto-transferencia").value);
   const rowTC   = document.getElementById("row-tipo-cambio");
   const tipoCambio = parseFloat(document.getElementById("mov-tipo-cambio").value);
   const cajaOrigen  = cajas.find(c => c.nombre === origen);
@@ -845,7 +895,7 @@ btn.textContent = "Guardando..."; btn.disabled = true;
 
 let concepto = getConceptoActivo();
 const caja   = document.getElementById("mov-caja").value;
-const monto  = parseFloat(document.getElementById("mov-monto").value);
+const monto  = evaluarMonto(document.getElementById("mov-monto").value);
 if (!concepto || !caja || !monto) {
   alert("Completa todos los campos obligatorios");
   return;

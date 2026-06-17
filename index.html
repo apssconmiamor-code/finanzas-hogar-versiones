@@ -248,7 +248,8 @@
               </div>
               <div class="form-group">
                 <label>Monto</label>
-                <input id="mov-monto" type="number" inputmode="decimal" placeholder="0" class="input"/>
+                <input id="mov-monto" type="text" inputmode="decimal" placeholder="0 ó 4000+5000" class="input"/>
+                <span id="mov-monto-calc" class="mov-saldo-hint hidden"></span>
                 <span id="mov-fondos-warn" class="mov-fondos-warn hidden"></span>
               </div>
             </div>
@@ -267,7 +268,8 @@
                 </div>
                 <div class="form-group" style="margin-top:10px">
                   <label>Monto</label>
-                  <input id="mov-monto-transferencia" type="number" inputmode="decimal" placeholder="0" class="input"/>
+                  <input id="mov-monto-transferencia" type="text" inputmode="decimal" placeholder="0 ó 4000+5000" class="input"/>
+                  <span id="mov-monto-transf-calc" class="mov-saldo-hint hidden"></span>
                 </div>
                 <div class="form-group" id="row-tipo-cambio" style="display:none">
                   <label>Tipo de cambio (1 <span id="tc-moneda-origen">USD</span> = ? <span id="tc-moneda-destino">COP</span>)</label>
