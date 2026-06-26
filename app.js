@@ -143,23 +143,26 @@ const ICONOS = {
 // ---- INIT ----
 
 window.onload = () => {
-  google.accounts.id.initialize({
-    client_id: CONFIG.GOOGLE_CLIENT_ID,
-    callback: () => {},
-    auto_select: false
-  });
-
+  // Verificar sesión guardada PRIMERO, antes de cualquier llamada a Google
+  // (el script de Google puede no haber cargado si estamos offline)
   const token = localStorage.getItem("gtoken");
   const user  = localStorage.getItem("guser");
 
   if (user) {
-    // Siempre mostrar la app con datos del caché si el usuario está guardado
     currentUser = JSON.parse(user);
     if (token) Sheets.setToken(token);
     mostrarApp();
-    // Refrescar el token en segundo plano sin mostrar ningún popup
-    _refrescarTokenSilencioso();
   }
+
+  // Inicializar Google APIs (puede fallar offline — la app ya funciona con caché)
+  try {
+    google.accounts.id.initialize({
+      client_id: CONFIG.GOOGLE_CLIENT_ID,
+      callback: () => {},
+      auto_select: false
+    });
+    if (user) _refrescarTokenSilencioso();
+  } catch (e) { /* script de Google no disponible — modo offline */ }
 
   setupEventListeners();
 };
@@ -167,6 +170,7 @@ window.onload = () => {
 // Intenta obtener un token nuevo sin interrumpir al usuario
 function _refrescarTokenSilencioso() {
   if (!currentUser?.email) return;
+  if (typeof google === "undefined") return;
   try {
     const client = google.accounts.oauth2.initTokenClient({
       client_id: CONFIG.GOOGLE_CLIENT_ID,
@@ -186,6 +190,10 @@ function _refrescarTokenSilencioso() {
 // ---- AUTH ----
 
 document.getElementById("btn-login").addEventListener("click", () => {
+  if (typeof google === "undefined") {
+    alert("Sin conexión a Internet. Conéctate y vuelve a intentarlo.");
+    return;
+  }
   const client = google.accounts.oauth2.initTokenClient({
     client_id: CONFIG.GOOGLE_CLIENT_ID,
     scope: "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email",

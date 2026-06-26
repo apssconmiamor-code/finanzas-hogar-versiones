@@ -33,6 +33,7 @@ const Sheets = {
   },
 
   _renovarToken() {
+    if (typeof google === "undefined") return; // offline — la app sigue con caché
     const raw = localStorage.getItem("guser");
     if (!raw) {
       document.getElementById("app")?.classList.add("hidden");
