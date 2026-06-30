@@ -891,3 +891,30 @@ body {
 }
 .proy-4m-card:hover .proy-4m-remove { display: block; }
 .proy-4m-card { position: relative; }
+
+/* ═══════════════ DETALLE CUENTA (MODAL) ═══════════════ */
+.detalle-caja-resumen {
+  display: flex; gap: 16px; flex-wrap: wrap;
+  padding: 10px 16px 8px;
+  font-size: 0.83rem; border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+.detalle-caja-scroll {
+  overflow-y: auto; max-height: 52vh; padding: 0 4px 12px;
+}
+.detalle-caja-table {
+  width: 100%; border-collapse: collapse; font-size: 0.82rem;
+}
+.detalle-caja-table th {
+  position: sticky; top: 0; background: var(--surface);
+  padding: 8px 10px 6px; font-size: 0.75rem; font-weight: 700;
+  color: var(--text-3); text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.detalle-caja-table td {
+  padding: 7px 10px; border-bottom: 1px solid var(--border-light, var(--border));
+  vertical-align: middle;
+}
+.detalle-caja-table tr:last-child td { border-bottom: none; }
+.detalle-caja-table tr:hover td { background: var(--bg); }
+.caja-card { user-select: none; }

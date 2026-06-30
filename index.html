@@ -440,6 +440,18 @@
 
     <!-- ══ MODALES GLOBALES ══ -->
 
+    <!-- Modal detalle cuenta -->
+    <div id="modal-detalle-caja" class="modal hidden" onclick="if(event.target===this)this.classList.add('hidden')">
+      <div class="modal-card" style="max-width:560px;max-height:80vh;display:flex;flex-direction:column">
+        <div class="modal-header">
+          <span id="detalle-caja-titulo" class="modal-title"></span>
+          <button class="modal-close" onclick="document.getElementById('modal-detalle-caja').classList.add('hidden')">✕</button>
+        </div>
+        <div id="detalle-caja-resumen" class="detalle-caja-resumen"></div>
+        <div id="detalle-caja-body" style="flex:1;overflow:hidden"></div>
+      </div>
+    </div>
+
     <!-- Modal nueva compra -->
     <div id="modal-compra" class="modal hidden">
       <div class="modal-card">

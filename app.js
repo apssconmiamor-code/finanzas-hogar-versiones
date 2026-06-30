@@ -143,48 +143,56 @@ const ICONOS = {
 // ---- INIT ----
 
 window.onload = () => {
-  // Verificar sesión guardada PRIMERO, antes de cualquier llamada a Google
-  // (el script de Google puede no haber cargado si estamos offline)
-  const token = localStorage.getItem("gtoken");
-  const user  = localStorage.getItem("guser");
+  const userRaw = localStorage.getItem("guser");
+  const token   = localStorage.getItem("gtoken");
 
-  if (user) {
-    currentUser = JSON.parse(user);
+  if (userRaw) {
+    // Usuario guardado → app inmediata con caché, sin ningún popup de Google
+    currentUser = JSON.parse(userRaw);
     if (token) Sheets.setToken(token);
     mostrarApp();
+  } else {
+    // Sin usuario → intentar One Tap (auto-selecciona sin popup si hay sesión activa)
+    try {
+      google.accounts.id.initialize({
+        client_id: CONFIG.GOOGLE_CLIENT_ID,
+        auto_select: true,
+        cancel_on_tap_outside: false,
+        callback: _onOneTapCredential
+      });
+      google.accounts.id.prompt();
+    } catch (e) { /* sin conexión — login manual */ }
   }
-
-  // Inicializar Google APIs (puede fallar offline — la app ya funciona con caché)
-  try {
-    google.accounts.id.initialize({
-      client_id: CONFIG.GOOGLE_CLIENT_ID,
-      callback: () => {},
-      auto_select: false
-    });
-    if (user) _refrescarTokenSilencioso();
-  } catch (e) { /* script de Google no disponible — modo offline */ }
 
   setupEventListeners();
 };
 
-// Intenta obtener un token nuevo sin interrumpir al usuario
-function _refrescarTokenSilencioso() {
-  if (!currentUser?.email) return;
-  if (typeof google === "undefined") return;
+// Callback de One Tap: guarda usuario y obtiene token para Sheets en silencio
+async function _onOneTapCredential(credentialResponse) {
+  try {
+    const parts = credentialResponse.credential.split(".");
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
+    currentUser = { name: payload.name, email: payload.email, picture: payload.picture };
+    localStorage.setItem("guser", JSON.stringify(currentUser));
+  } catch (e) { return; }
+
+  if (typeof google === "undefined") { mostrarApp(); return; }
   try {
     const client = google.accounts.oauth2.initTokenClient({
       client_id: CONFIG.GOOGLE_CLIENT_ID,
       scope: "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email",
-      prompt: "",
+      prompt: "none",
       hint: currentUser.email,
       callback: (response) => {
-        if (response.error) return; // falla silenciosamente, los datos del caché siguen visibles
-        Sheets.setToken(response.access_token);
-        localStorage.setItem("gtoken", response.access_token);
+        if (!response.error) {
+          Sheets.setToken(response.access_token);
+          localStorage.setItem("gtoken", response.access_token);
+        }
+        mostrarApp();
       }
     });
     client.requestAccessToken();
-  } catch (e) { /* silencioso */ }
+  } catch (e) { mostrarApp(); }
 }
 
 // ---- AUTH ----
@@ -335,6 +343,13 @@ document.getElementById("btn-nuevo-movimiento").addEventListener("click", () => 
   activarCalculoMonto("mov-monto", "mov-monto-calc");
   activarCalculoMonto("mov-monto-transferencia", "mov-monto-transf-calc");
 
+  // Repoblar gastos fijos cuando cambia la fecha (el check usa el mes de la fecha seleccionada)
+  document.getElementById("mov-fecha")?.addEventListener("change", () => {
+    if (document.getElementById("mov-categoria").value === "Gasto fijo") {
+      poblarSelectGastosFijos();
+    }
+  });
+
   // Live validation: filtrar cajas con fondos suficientes al escribir el monto
   document.getElementById("mov-monto")?.addEventListener("input", () => {
     const catVal = document.getElementById("mov-categoria").value;
@@ -418,22 +433,24 @@ document.getElementById("btn-nuevo-movimiento").addEventListener("click", () => 
 // ---- LÓGICA CONCEPTO DINÁMICO ----
 function poblarSelectGastosFijos() {
   const sel = document.getElementById("mov-concepto-fijo");
-  const mesActual = new Date().toISOString().slice(0, 7);
   const editId = document.getElementById("modal-movimiento").dataset.editId;
 
-  // Conceptos ya pagados este mes (excluir el movimiento que se está editando)
-  const pagadosEsteMes = new Set(
+  // Usar el mes de la fecha seleccionada en el formulario, no el mes de hoy
+  const fechaInput = document.getElementById("mov-fecha");
+  const mesFecha = fechaInput && fechaInput.value ? fechaInput.value.slice(0, 7) : new Date().toISOString().slice(0, 7);
+
+  // Conceptos ya registrados en el mes de la fecha seleccionada
+  const pagadosEnFecha = new Set(
     movimientos
       .filter(m => {
         if (m.categoria !== "Gasto fijo") return false;
-        if (!m.fecha.startsWith(mesActual)) return false;
+        if (!m.fecha.startsWith(mesFecha)) return false;
         if (editId && m.id === editId) return false;
         return true;
       })
       .map(m => m.concepto)
   );
 
-  // También incluir préstamos activos como opciones
   const conceptosPrestamos = prestamos
     ? prestamos.filter(p => !p.pagado).map(p => conceptoPrestamo(p.nombre))
     : [];
@@ -442,10 +459,9 @@ function poblarSelectGastosFijos() {
 
   sel.innerHTML = `<option value="">Selecciona un gasto fijo...</option>` +
     todosLosFijos.map(c => {
-      const yaPagado = pagadosEsteMes.has(c);
-      return `<option value="${c}" ${yaPagado ? "disabled style='color:var(--text-light)'" : ""}>
-        ${yaPagado ? "✓ " : ""}${c}${yaPagado ? " (ya registrado)" : ""}
-      </option>`;
+      const yaPagado = pagadosEnFecha.has(c);
+      // No bloquear: solo mostrar indicador visual de que ya está registrado este mes
+      return `<option value="${c}">${yaPagado ? "✓ " : ""}${c}${yaPagado ? " (ya registrado)" : ""}</option>`;
     }).join("");
 }
 
@@ -610,9 +626,9 @@ function renderCajas() {
   }
   grid.innerHTML = cajas.map(c => {
     const saldoReal = calcularSaldoCaja(c.nombre);
-    const saldo     = Math.max(0, saldoReal);   // nunca mostrar negativo
+    const saldo     = Math.max(0, saldoReal);
     const badgeClass = cajaBadgeClass(c.nombre);
-    return `<div class="caja-card">
+    return `<div class="caja-card" ondblclick="abrirDetalleCaja('${c.nombre.replace(/'/g, "\\'")}')" title="Doble clic para ver movimientos">
       <div class="caja-card-top">
         <span class="caja-moneda-badge ${badgeClass}">${c.moneda}</span>
       </div>
@@ -620,6 +636,53 @@ function renderCajas() {
       <div class="caja-saldo positivo">${formatMonto(saldo, c.moneda)}</div>
     </div>`;
   }).join("");
+}
+
+function abrirDetalleCaja(nombre) {
+  const caja = cajas.find(c => c.nombre === nombre);
+  const moneda = caja ? caja.moneda : "COP";
+
+  const movs = movimientos
+    .filter(m => m.caja === nombre)
+    .sort((a, b) => b.fecha.localeCompare(a.fecha));
+
+  const totalEntradas = movs.filter(m =>
+    m.categoria === "Ingreso" || (m.categoria === "Transferencia" && m.concepto.startsWith("Transferencia ←"))
+  ).reduce((s, m) => s + m.monto, 0);
+
+  const totalSalidas = movs.filter(m =>
+    m.categoria !== "Ingreso" && !(m.categoria === "Transferencia" && m.concepto.startsWith("Transferencia ←"))
+  ).reduce((s, m) => s + Math.abs(m.monto), 0);
+
+  const filas = movs.map(m => {
+    const esEntrada = m.categoria === "Ingreso" || (m.categoria === "Transferencia" && m.concepto.startsWith("Transferencia ←"));
+    const signo = esEntrada ? "+" : "-";
+    const color = esEntrada ? "var(--green)" : "var(--red)";
+    return `<tr>
+      <td>${m.fecha}</td>
+      <td>${m.concepto}</td>
+      <td style="color:var(--text-light);font-size:0.82rem">${m.categoria}</td>
+      <td style="text-align:right;color:${color};font-weight:600">${signo}${formatMonto(Math.abs(m.monto), moneda)}</td>
+    </tr>`;
+  }).join("");
+
+  const cuerpo = movs.length === 0
+    ? `<p style="text-align:center;color:var(--text-light);padding:24px">Sin movimientos registrados</p>`
+    : `<div class="detalle-caja-scroll">
+        <table class="detalle-caja-table">
+          <thead><tr><th>Fecha</th><th>Concepto</th><th>Categoría</th><th style="text-align:right">Monto</th></tr></thead>
+          <tbody>${filas}</tbody>
+        </table>
+       </div>`;
+
+  document.getElementById("detalle-caja-titulo").textContent = nombre;
+  document.getElementById("detalle-caja-resumen").innerHTML = `
+    <span style="color:var(--green)">▲ Entradas: ${formatMonto(totalEntradas, moneda)}</span>
+    <span style="color:var(--red)">▼ Salidas: ${formatMonto(totalSalidas, moneda)}</span>
+    <span style="font-weight:700">Saldo: ${formatMonto(totalEntradas - totalSalidas, moneda)}</span>
+  `;
+  document.getElementById("detalle-caja-body").innerHTML = cuerpo;
+  document.getElementById("modal-detalle-caja").classList.remove("hidden");
 }
 
 function calcularSaldoCaja(nombreCaja) {
