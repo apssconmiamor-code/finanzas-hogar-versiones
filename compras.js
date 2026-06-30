@@ -190,7 +190,7 @@ document.getElementById("mov-descripcion").value = compra.concepto;
 
   // Monto si tiene destinado
   if (compra.montoDestinado > 0) {
-    document.getElementById("mov-monto").value = compra.montoDestinado;
+    document.getElementById("mov-monto").value = compra.montoDestinado.toLocaleString("es-CO");
   }
 
   // Actualizar título del modal para dar contexto
@@ -274,7 +274,7 @@ if (document.readyState === "loading") {
 async function guardarCompra() {
   const concepto       = document.getElementById("compra-concepto").value.trim();
   const categoria      = document.getElementById("compra-categoria").value.trim();
-  const montoDestinado = parseFloat(document.getElementById("compra-monto").value) || 0;
+  const montoDestinado = evaluarMonto(document.getElementById("compra-monto").value) || 0;
   const urgencia       = document.getElementById("compra-urgencia").value;
   const fecha          = document.getElementById("compra-fecha").value;
 
@@ -360,6 +360,10 @@ function setupComprasListeners() {
 
   document.getElementById("btn-guardar-compra")
     .addEventListener("click", guardarCompra);
+
+  // Separadores de miles en monto de compra
+  const compraMonto = document.getElementById("compra-monto");
+  if (compraMonto) compraMonto.addEventListener("input", () => formatearInputMiles(compraMonto));
 
   document.getElementById("modal-compra")
     .addEventListener("click", (e) => {

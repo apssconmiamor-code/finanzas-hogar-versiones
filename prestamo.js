@@ -287,7 +287,7 @@ function escapeAttr(str) {
 // ---- CREAR PRÉSTAMO ----
 async function guardarPrestamo() {
   const nombre      = document.getElementById("prest-nombre").value.trim();
-  const monto       = parseFloat(document.getElementById("prest-monto").value);
+  const monto       = evaluarMonto(document.getElementById("prest-monto").value);
   const cuotas      = parseInt(document.getElementById("prest-cuotas").value) || 0;
   const fechaInicio = document.getElementById("prest-fecha").value;
   const descripcion = document.getElementById("prest-descripcion").value.trim();
@@ -341,7 +341,7 @@ async function guardarPagoRapido() {
   const modal     = document.getElementById("modal-pago-rapido");
   const prestId   = modal.dataset.prestId;
   const nombre    = modal.dataset.prestNombre;
-  const monto     = parseFloat(document.getElementById("pago-monto").value);
+  const monto     = evaluarMonto(document.getElementById("pago-monto").value);
   const fecha     = document.getElementById("pago-fecha").value;
   const caja      = document.getElementById("pago-caja").value;
   const desc      = document.getElementById("pago-desc").value.trim();
@@ -411,6 +411,12 @@ function setupPrestamoListeners() {
 
   document.getElementById("btn-guardar-pago")
     .addEventListener("click", guardarPagoRapido);
+
+  // Separadores de miles en campos de monto de préstamos
+  const prestMonto = document.getElementById("prest-monto");
+  if (prestMonto) prestMonto.addEventListener("input", () => formatearInputMiles(prestMonto));
+  const pagoMonto = document.getElementById("pago-monto");
+  if (pagoMonto) pagoMonto.addEventListener("input", () => formatearInputMiles(pagoMonto));
 
   // Cerrar modales al clic fuera
   ["modal-prestamo", "modal-pago-rapido"].forEach(id => {

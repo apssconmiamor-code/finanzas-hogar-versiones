@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
   <link rel="manifest" href="manifest.json"/>
   <link rel="apple-touch-icon" href="icon.png"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
@@ -97,7 +97,7 @@
             </button>
             <div class="dropdown-divider"></div>
             <button class="dropdown-item" id="dd-sync">
-              <span class="dd-icon">🔄</span> Sincronizar
+              <span class="dd-icon">🔄</span> Sincronizar todo
             </button>
             <button class="dropdown-item dropdown-item-danger" id="dd-logout">
               <span class="dd-icon">🚪</span> Cerrar sesión
@@ -283,6 +283,17 @@
               <textarea id="mov-descripcion" rows="2" placeholder="Detalle, notas…"
                 class="input" style="resize:none;min-height:60px;font-size:15px;line-height:1.4"></textarea>
             </div>
+            <div class="form-group">
+              <label>Fotos <span class="label-opcional">(opcional)</span></label>
+              <div class="fotos-actions-row">
+                <label class="btn-secondary btn-sm fotos-btn" for="recibo-file">📎 Galería</label>
+                <input id="recibo-file" type="file" accept="image/*" multiple style="display:none"/>
+                <label class="btn-secondary btn-sm fotos-btn" for="camara-file">📷 Cámara</label>
+                <input id="camara-file" type="file" accept="image/*" capture="environment" style="display:none"/>
+              </div>
+              <div id="fotos-preview" class="fotos-preview"></div>
+              <span id="recibo-status" class="recibo-status"></span>
+            </div>
             <div class="modal-actions">
               <button class="btn-secondary" id="btn-cancelar-mov">Cancelar</button>
               <button class="btn-primary" id="btn-guardar-mov">Guardar</button>
@@ -467,7 +478,7 @@
           </div>
           <div class="form-group">
             <label>Monto <span class="label-opcional">(opcional)</span></label>
-            <input class="input" id="compra-monto" type="number" inputmode="decimal" placeholder="0"/>
+            <input class="input" id="compra-monto" type="text" inputmode="decimal" placeholder="0"/>
           </div>
         </div>
         <div class="form-row">
@@ -515,7 +526,7 @@
           </div>
           <div class="form-group">
             <label>Monto total</label>
-            <input id="prest-monto" type="number" inputmode="decimal" placeholder="0" class="input"/>
+            <input id="prest-monto" type="text" inputmode="decimal" placeholder="0" class="input"/>
           </div>
         </div>
         <div class="form-row">
@@ -551,7 +562,7 @@
         </div>
         <div class="form-row">
           <div class="form-group"><label>Fecha</label><input id="pago-fecha" type="date" class="input"/></div>
-          <div class="form-group"><label>Monto</label><input id="pago-monto" type="number" inputmode="decimal" placeholder="0" class="input"/></div>
+          <div class="form-group"><label>Monto</label><input id="pago-monto" type="text" inputmode="decimal" placeholder="0" class="input"/></div>
         </div>
         <div class="form-group">
           <label>Caja</label>

@@ -3,10 +3,13 @@
 // =============================================
 
 // Evalúa expresiones simples en campos de monto (ej: "4000+5000+1000" → 10000)
+// También soporta valores pre-formateados con puntos de miles (ej: "1.000.000")
 function evaluarMonto(str) {
-  const clean = String(str || "").replace(/\s/g, "").replace(/,/g, ".");
+  const clean = String(str || "")
+    .replace(/\s/g, "")
+    .replace(/\./g, "")   // strip puntos usados como separadores de miles (es-CO)
+    .replace(/,/g, ".");  // normalizar coma decimal a punto JS
   if (!clean) return 0;
-  // Solo permitir dígitos y operadores básicos — sin eval directo
   if (!/^[\d+\-*/().]+$/.test(clean)) return parseFloat(clean) || 0;
   try {
     // eslint-disable-next-line no-new-func
@@ -16,7 +19,24 @@ function evaluarMonto(str) {
   return parseFloat(clean) || 0;
 }
 
-// Activa el cálculo en tiempo real en un input de monto
+// Formatea un input numérico con separadores de miles (es-CO: punto de miles)
+function formatearInputMiles(input) {
+  const val = input.value;
+  if (/[+\-*/()]/.test(val)) return; // no formatear expresiones
+  const raw = val.replace(/\./g, "").replace(/,/g, "");
+  if (!raw) return;
+  const num = parseInt(raw, 10);
+  if (isNaN(num)) return;
+  const formatted = num.toLocaleString("es-CO");
+  if (formatted === val) return;
+  const sel = input.selectionStart;
+  const prevLen = val.length;
+  input.value = formatted;
+  const diff = formatted.length - prevLen;
+  try { input.setSelectionRange(Math.max(0, sel + diff), Math.max(0, sel + diff)); } catch (e) {}
+}
+
+// Activa el cálculo en tiempo real en un input de monto + separadores de miles
 function activarCalculoMonto(inputId, hintId) {
   const input = document.getElementById(inputId);
   const hint  = document.getElementById(hintId);
@@ -35,6 +55,7 @@ function activarCalculoMonto(inputId, hintId) {
       }
     } else {
       hint.classList.add("hidden");
+      formatearInputMiles(input);
     }
   });
 
@@ -42,7 +63,7 @@ function activarCalculoMonto(inputId, hintId) {
     const val = input.value;
     if (/[+\-*/]/.test(val)) {
       const result = evaluarMonto(val);
-      if (result > 0) input.value = result;
+      if (result > 0) input.value = result.toLocaleString("es-CO");
     }
     hint.classList.add("hidden");
   });
@@ -420,7 +441,16 @@ document.getElementById("btn-nuevo-movimiento").addEventListener("click", () => 
   document.getElementById("filtro-mes").addEventListener("change", renderMovimientos);
   document.getElementById("filtro-concepto").addEventListener("change", renderMovimientos);
 
-  
+  // Separadores de miles: delegación para inputs de presupuesto/proyección (dinámicos)
+  document.addEventListener("input", (e) => {
+    if (e.target.classList.contains("pres-input")) {
+      formatearInputMiles(e.target);
+    }
+  });
+
+  // Fotos en nuevo movimiento
+  setupFotosListeners();
+
   // Cerrar modal al clic fuera
   document.querySelectorAll(".modal").forEach(modal => {
     modal.addEventListener("click", (e) => {
@@ -887,6 +917,7 @@ btn.textContent = "Guardando..."; btn.disabled = true;
 
     try {
       await Sheets.editarMovimiento(editId, fecha, concepto, categoria, caja, monto, descripcion);
+      if (pendingFotos.length > 0) await guardarFotosMovimiento(fecha, concepto, caja);
       delete document.getElementById("modal-movimiento").dataset.editId;
       document.getElementById("modal-movimiento").classList.add("hidden");
       limpiarFormMov();
@@ -1003,6 +1034,19 @@ if (categoria === "Gasto variable" && !GASTOS_VARIABLES.includes(concepto)) {
       }
     }
 
+    // Guardar fotos si hay pendientes
+    if (pendingFotos.length > 0) {
+      const fotoFecha = document.getElementById("mov-fecha").value;
+      const fotoCat   = document.getElementById("mov-categoria").value;
+      const fotoConc  = fotoCat === "Transferencia"
+        ? `Transferencia-${document.getElementById("mov-caja-origen").value}`
+        : getConceptoActivo();
+      const fotoCaja  = fotoCat === "Transferencia"
+        ? document.getElementById("mov-caja-origen").value
+        : document.getElementById("mov-caja").value;
+      await guardarFotosMovimiento(fotoFecha, fotoConc, fotoCaja);
+    }
+
     document.getElementById("modal-movimiento").classList.add("hidden");
     limpiarFormMov();
 
@@ -1040,7 +1084,7 @@ function abrirEditarMovimiento(id) {
 
   if (m.categoria !== "Transferencia") {
     document.getElementById("mov-caja").value  = m.caja;
-    document.getElementById("mov-monto").value = Math.abs(m.monto);
+    document.getElementById("mov-monto").value = Math.abs(m.monto).toLocaleString("es-CO");
   }
 
   document.getElementById("modal-movimiento").dataset.editId = id;
@@ -1123,11 +1167,14 @@ function limpiarFormMov() {
   document.getElementById("mov-caja-destino").value = "";
   document.getElementById("mov-monto-transferencia").value = "";
   document.getElementById("mov-descripcion").value = "";
-const reciboStatus = document.getElementById("recibo-status");
-if (reciboStatus) reciboStatus.textContent = "";
 
-const reciboFile = document.getElementById("recibo-file");
-if (reciboFile) reciboFile.value = "";
+  // Limpiar fotos pendientes
+  pendingFotos = [];
+  renderFotosPreview();
+  const reciboFile = document.getElementById("recibo-file");
+  if (reciboFile) reciboFile.value = "";
+  const camaraFile = document.getElementById("camara-file");
+  if (camaraFile) camaraFile.value = "";
   delete document.getElementById("modal-movimiento").dataset.editId;
   document.getElementById("btn-guardar-mov").textContent = "Guardar";
   actualizarCampoConcepto();
@@ -1570,24 +1617,24 @@ function abrirConfigMes(mes) {
     ${FUENTES.map(f => `
       <div class="pres-fila">
         <span class="pres-concepto">💰 ${f}</span>
-        <input class="input pres-input" type="number" inputmode="decimal" placeholder="0"
-          data-tipo="ingreso" data-fuente="${f}" value="${fuentes[f] || ""}"/>
+        <input class="input pres-input" type="text" inputmode="decimal" placeholder="0"
+          data-tipo="ingreso" data-fuente="${f}" value="${fuentes[f] ? Number(fuentes[f]).toLocaleString("es-CO") : ""}"/>
       </div>`).join("")}
 
     <div class="pres-seccion-title" style="margin-top:16px">📌 Gastos fijos</div>
     ${todasCat.filter(c => c.categoria === "Gasto fijo").map(c => `
       <div class="pres-fila">
         <span class="pres-concepto">${ICONOS[c.concepto] || "📌"} ${c.concepto}</span>
-        <input class="input pres-input" type="number" inputmode="decimal" placeholder="0"
-          data-tipo="gasto" data-concepto="${c.concepto}" value="${gastosMes[c.concepto] || ""}"/>
+        <input class="input pres-input" type="text" inputmode="decimal" placeholder="0"
+          data-tipo="gasto" data-concepto="${c.concepto}" value="${gastosMes[c.concepto] ? Number(gastosMes[c.concepto]).toLocaleString("es-CO") : ""}"/>
       </div>`).join("")}
 
     <div class="pres-seccion-title" style="margin-top:16px">🔀 Gastos variables</div>
     ${todasCat.filter(c => c.categoria === "Gasto variable").map(c => `
       <div class="pres-fila">
         <span class="pres-concepto">${ICONOS[c.concepto] || "🔀"} ${c.concepto}</span>
-        <input class="input pres-input" type="number" inputmode="decimal" placeholder="0"
-          data-tipo="gasto" data-concepto="${c.concepto}" value="${gastosMes[c.concepto] || ""}"/>
+        <input class="input pres-input" type="text" inputmode="decimal" placeholder="0"
+          data-tipo="gasto" data-concepto="${c.concepto}" value="${gastosMes[c.concepto] ? Number(gastosMes[c.concepto]).toLocaleString("es-CO") : ""}"/>
       </div>`).join("")}
   `;
 
@@ -1597,7 +1644,7 @@ function abrirConfigMes(mes) {
     const nuevosIngresos = {};
     const nuevosGastos   = {};
     body.querySelectorAll(".pres-input").forEach(inp => {
-      const v = parseFloat(inp.value);
+      const v = evaluarMonto(inp.value);
       if (v > 0) {
         if (inp.dataset.tipo === "ingreso") nuevosIngresos[inp.dataset.fuente] = v;
         else nuevosGastos[inp.dataset.concepto] = v;
@@ -1864,18 +1911,18 @@ function renderFormPresupuesto() {
     ${filas.filter(f => f.categoria === "Gasto fijo").map(f => `
       <div class="pres-fila">
         <span class="pres-concepto">${ICONOS[f.concepto] || "📌"} ${f.concepto}</span>
-        <input class="input pres-input" type="number" placeholder="0"
+        <input class="input pres-input" type="text" inputmode="decimal" placeholder="0"
           data-tipo="gasto" data-concepto="${f.concepto}" data-categoria="Gasto fijo"
-          value="${f.montoEstimado || ""}"/>
+          value="${f.montoEstimado ? Number(f.montoEstimado).toLocaleString("es-CO") : ""}"/>
       </div>`).join("")}
 
     <div class="pres-seccion-title" style="margin-top:20px">🔀 Gastos variables</div>
     ${filas.filter(f => f.categoria === "Gasto variable").map(f => `
       <div class="pres-fila">
         <span class="pres-concepto">${ICONOS[f.concepto] || "📌"} ${f.concepto}</span>
-        <input class="input pres-input" type="number" placeholder="0"
+        <input class="input pres-input" type="text" inputmode="decimal" placeholder="0"
           data-tipo="gasto" data-concepto="${f.concepto}" data-categoria="Gasto variable"
-          value="${f.montoEstimado || ""}"/>
+          value="${f.montoEstimado ? Number(f.montoEstimado).toLocaleString("es-CO") : ""}"/>
       </div>`).join("")}
   `;
 }
@@ -1885,7 +1932,7 @@ async function guardarPresupuesto() {
   const filas = [];
 
   inputs.forEach(inp => {
-    const val = parseFloat(inp.value);
+    const val = evaluarMonto(inp.value);
     if (!val || val <= 0) return;
     filas.push({
       categoria:       inp.dataset.categoria,
@@ -2069,7 +2116,7 @@ function setupTopbarMenu() {
 
   ddSync.addEventListener("click", () => {
     dropdown.classList.add("hidden");
-    cargarTodo();
+    sincronizarForzado();
   });
 
   ddLogout.addEventListener("click", () => {
@@ -2462,4 +2509,95 @@ const TAB_TITLES = {
 function actualizarTopbarTitulo(tab) {
   const el = document.getElementById("topbar-title");
   if (el) el.textContent = TAB_TITLES[tab] || "";
+}
+
+// =============================================
+// FOTOS EN MOVIMIENTOS
+// =============================================
+
+let pendingFotos = [];
+
+function setupFotosListeners() {
+  const fileInput   = document.getElementById("recibo-file");
+  const camaraInput = document.getElementById("camara-file");
+  if (fileInput)   fileInput.addEventListener("change",   (e) => agregarFotos(e.target.files));
+  if (camaraInput) camaraInput.addEventListener("change", (e) => agregarFotos(e.target.files));
+}
+
+function agregarFotos(files) {
+  Array.from(files).forEach(file => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      pendingFotos.push({ data: e.target.result, type: file.type });
+      renderFotosPreview();
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function renderFotosPreview() {
+  const preview = document.getElementById("fotos-preview");
+  const status  = document.getElementById("recibo-status");
+  if (!preview) return;
+  preview.innerHTML = pendingFotos.map((f, i) => `
+    <div class="foto-thumb">
+      <img src="${f.data}" alt="foto ${i + 1}" class="foto-thumb-img"/>
+      <button class="foto-thumb-remove" type="button" onclick="quitarFoto(${i})">×</button>
+    </div>
+  `).join("");
+  if (status) {
+    status.textContent = pendingFotos.length > 0
+      ? `${pendingFotos.length} foto${pendingFotos.length !== 1 ? "s" : ""} adjunta${pendingFotos.length !== 1 ? "s" : ""}`
+      : "";
+  }
+}
+
+window.quitarFoto = function(idx) {
+  pendingFotos.splice(idx, 1);
+  renderFotosPreview();
+};
+
+// Guarda las fotos en IndexedDB con nombre Fecha-Concepto-Caja
+async function guardarFotosMovimiento(fecha, concepto, caja) {
+  if (pendingFotos.length === 0) return;
+  const slug = `${fecha}-${String(concepto).replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ]/g, "_")}-${String(caja).replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ]/g, "_")}`;
+  await new Promise((resolve) => {
+    const req = indexedDB.open("finanzas-fotos", 1);
+    req.onupgradeneeded = (e) => e.target.result.createObjectStore("fotos", { keyPath: "key" });
+    req.onsuccess = (e) => {
+      const db = e.target.result;
+      const tx = db.transaction("fotos", "readwrite");
+      const store = tx.objectStore("fotos");
+      pendingFotos.forEach((foto, i) => {
+        store.put({ key: `${slug}-${i + 1}`, data: foto.data, type: foto.type });
+      });
+      tx.oncomplete = resolve;
+      tx.onerror = resolve;
+    };
+    req.onerror = resolve;
+  });
+}
+
+// =============================================
+// SINCRONIZACIÓN FORZADA — limpia caché y recarga
+// =============================================
+
+async function sincronizarForzado() {
+  SyncManager.mostrarToast("🔄 Limpiando caché y recargando…");
+
+  // Borrar caches de datos (preservar auth)
+  [
+    "cache_cajas", "cache_movimientos", "cache_presupuesto",
+    "cache_cronologia", "cache_proyeccion",
+    "ingresos_por_mes", "gastos_por_mes", "proy_meses_list",
+    "cache_prestamos", "cache_compras"
+  ].forEach(k => localStorage.removeItem(k));
+
+  // Pedir al SW que limpie los archivos estáticos cacheados
+  if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage({ type: "CLEAR_APP_CACHE" });
+  }
+
+  // Breve pausa para que el SW procese, luego recargar página fresca
+  setTimeout(() => location.reload(), 800);
 }

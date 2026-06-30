@@ -918,3 +918,39 @@ body {
 .detalle-caja-table tr:last-child td { border-bottom: none; }
 .detalle-caja-table tr:hover td { background: var(--bg); }
 .caja-card { user-select: none; }
+
+/* ═══════════════ FOTOS EN MOVIMIENTO ═══════════════ */
+.fotos-actions-row {
+  display: flex; gap: 8px; margin-bottom: 8px;
+}
+.fotos-btn {
+  cursor: pointer; user-select: none;
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 7px 14px; font-size: 13px; border-radius: 10px;
+  border: 1.5px solid var(--border-mid); background: var(--surface);
+  color: var(--text-2); font-weight: 500; white-space: nowrap;
+}
+.fotos-btn:active { opacity: 0.7; }
+.fotos-preview {
+  display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px;
+}
+.foto-thumb {
+  position: relative; width: 72px; height: 72px;
+  border-radius: 10px; overflow: hidden;
+  border: 1.5px solid var(--border-mid);
+  box-shadow: var(--shadow-sm);
+}
+.foto-thumb-img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+}
+.foto-thumb-remove {
+  position: absolute; top: 2px; right: 2px;
+  width: 20px; height: 20px;
+  background: rgba(0,0,0,0.55); color: #fff;
+  border: none; border-radius: 50%; cursor: pointer;
+  font-size: 13px; line-height: 1; display: flex;
+  align-items: center; justify-content: center;
+}
+.recibo-status {
+  font-size: 12px; color: var(--text-3); margin-top: 4px; display: block;
+}

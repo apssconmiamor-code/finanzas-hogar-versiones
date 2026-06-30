@@ -115,4 +115,9 @@ self.addEventListener("message", (event) => {
   if (event.data?.type === "SKIP_WAITING") {
     self.skipWaiting();
   }
+  if (event.data?.type === "CLEAR_APP_CACHE") {
+    event.waitUntil(
+      caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k))))
+    );
+  }
 });
